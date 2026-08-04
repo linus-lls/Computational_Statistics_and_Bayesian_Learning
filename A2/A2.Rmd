@@ -1,0 +1,628 @@
+---
+title: "STAT6011 Assignment 2"
+author: "Lee Lap San 3036373312"
+date: "2025-11-02"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+### a
+
+```{r 1a1}
+# Load necessary libraries
+library(ggplot2)
+library(cluster)
+
+# Load the dataset
+data <- read.csv("q1.csv")
+
+# Assuming the data is in a column named 'x'
+x <- data$y
+
+## a
+# 1. Visualize the data using a histogram
+ggplot(data, aes(x = x)) +
+  geom_histogram(binwidth = 0.15, fill = "skyblue", color = "black") +
+  labs(title = "Histogram of Observed Data", x = "x", y = "Frequency")
+
+```
+As shown in the histogram, there appears to be four peaks. We make a guess that there are 4 clusters. We estimate $\{\mu_k, \sigma_k\}_{k=1}^4$ by sample statistics.
+```{r 1a2}
+# 2. Apply hierarchical clustering
+# First, reshape the data for clustering
+x_matrix <- matrix(x, ncol = 1)
+
+# Compute the distance matrix
+dist_matrix <- dist(x_matrix)
+
+# Perform hierarchical clustering
+hc <- hclust(dist_matrix, method = "ward.D2")
+
+# Plot the dendrogram
+plot(hc, labels = FALSE, main = "Hierarchical Clustering Dendrogram")
+
+# Cut the tree to guess K (e.g., try 2 to 5 clusters)
+K_guess <- 4  # Guess
+clusters <- cutree(hc, k = K_guess)
+
+# Estimate parameters for each cluster
+for (k in 1:K_guess) {
+  cluster_data <- x[clusters == k]
+  mu_k <- mean(cluster_data)
+  sigma_k <- sd(cluster_data)
+  cat(sprintf("Cluster %d: Mean = %.2f, SD = %.2f\n", k, mu_k, sigma_k))
+}
+```
+
+### b
+We consider a Bayesian Gaussian mixture model with a number of components $K$. Each observation $x_i$ is modeled as:
+\begin{equation}
+x_i \sim \sum_{k=1}^K \pi_k \mathcal{N}(\mu_k, \sigma_k^2), \quad i = 1, \dots, n
+\end{equation}
+
+where $\pi_k$ are the mixing proportions such that $\sum_{k=1}^K \pi_k = 1$, and $\mu_k, \sigma_k^2$ are the mean and variance of the $k$-th component.
+We introduce latent allocation variables $z_i \in \{1, \dots, K\}$ such that:
+
+\begin{align}
+z_i \sim \text{Categorical}(\pi_1, \dots, \pi_K) \\
+x_i \mid z_i = k \sim \mathcal{N}(\mu_k, \sigma_k^2) \\
+\end{align}
+
+The complete-data likelihood is:
+\begin{align}
+L(\{\mu_k,\sigma_k,\pi_k\}_{k=1}^K \mid \mathbf{x},\mathbf{z}) \\
+= \prod_{i=1}^n[\pi_{z_i}\frac{1}{\sigma_{z_i}}exp(-\frac{1}{2}(\frac{x_i-\mu_{z_i}}{\sigma_{z_i}})^2)]
+\end{align}
+
+The prior distributions are:
+\begin{align}
+\mu_k \sim \mathcal{N}(0, 1) \\
+\tau_k = \sigma_k^{-2} \sim \text{Gamma}(0.1, 0.1) \\
+(\pi_1, \dots, \pi_K) \sim \text{Dirichlet}(1, \dots, 1) \\
+\end{align}
+
+
+Complete Conditional Distributions
+These arise from the conjugacy between the priors and the likelihoods
+Conditional for $z_i$:
+\begin{equation*}
+p(z_i = k \mid x_i, \mu_k, \sigma_k^2, \pi_k) \propto \pi_k \cdot \mathcal{N}(x_i \mid \mu_k, \sigma_k^2)
+\end{equation*}
+
+Conditional for $\mu_k$:
+Given the normal prior and normal likelihood:
+\begin{equation*}
+\mu_k \mid \{x_i : z_i = k\}, \tau_k \sim \mathcal{N}\left( \frac{\tau_k \sum_{i: z_i = k} x_i}{\tau_k n_k + 1}, \frac{1}{\tau_k n_k + 1} \right)
+\end{equation*}
+
+Conditional for $\tau_k$:
+Given the Gamma prior and normal likelihood:
+\begin{equation*}
+\tau_k \mid \{x_i : z_i = k\}, \mu_k \sim \text{Gamma}\left( a + \frac{n_k}{2}, \; b + \frac{1}{2} \sum_{i: z_i = k} (x_i - \mu_k)^2 \right)
+\end{equation*}
+
+Conditional for $\pi$:
+Given the Dirichlet prior and categorical likelihood:
+\begin{align}
+\pi \mid \{z_i\} \sim \text{Dirichlet}(\alpha_1 + n_1, \dots, \alpha_K + n_K) \\
+n_k = \sum_{i=1}^N I(z_i=k)
+\end{align}
+
+
+### c
+```{r 1c}
+## c
+n <- length(x)
+K <- 3
+sigma2 <- rep(1, K)
+pi_k <- rep(1/K, K)
+
+# Initialize parameters
+mu <- rnorm(K, 0, 1)
+z <- sample(1:K, n, replace = TRUE)
+
+# Gibbs sampling settings
+n_iter <- 10000
+burn_in <- 1000
+mu_samples <- matrix(NA, nrow = n_iter, ncol = K)
+
+# Gibbs sampler
+for (iter in 1:n_iter) {
+  # Step 1: Sample z_i
+  for (i in 1:n) {
+    probs <- sapply(1:K, function(k) {
+      dnorm(x[i], mean = mu[k], sd = sqrt(sigma2[k])) * pi_k[k]
+    })
+    z[i] <- sample(1:K, 1, prob = probs / sum(probs))
+  }
+  
+  # Step 2: Sample mu_k
+  for (k in 1:K) {
+    x_k <- x[z == k]
+    n_k <- length(x_k)
+    if (n_k > 0) {
+      x_bar_k <- mean(x_k)
+      post_var <- 1 / (n_k + 1)
+      post_mean <- n_k * x_bar_k * post_var
+      mu[k] <- rnorm(1, mean = post_mean, sd = sqrt(post_var))
+    } else {
+      mu[k] <- rnorm(1, 0, 1)  # fallback if no data assigned
+    }
+  }
+  
+  mu_samples[iter, ] <- mu
+}
+
+# Remove burn-in
+mu_samples_post <- mu_samples[(burn_in + 1):n_iter, ]
+
+# Posterior summaries
+posterior_means <- colMeans(mu_samples_post)
+posterior_vars <- apply(mu_samples_post, 2, var)
+
+cat("Posterior Means:\n")
+print(posterior_means)
+cat("Posterior Variances:\n")
+print(posterior_vars)
+
+# Trace plots
+par(mfrow = c(1, 3))
+for (k in 1:K) {
+  plot(mu_samples_post[, k], type = "l", main = paste("Trace Plot for mu", k),
+       xlab = "Iteration", ylab = expression(mu[k]))
+}
+```
+
+### d
+```{r 1d}
+# Load necessary libraries
+library(ggplot2)
+library(MCMCpack)  # for Dirichlet sampling
+
+n <- length(x)
+K <- 3
+
+# Priors
+mu_prior_mean <- 0
+mu_prior_var <- 1
+tau_shape <- 0.1
+tau_rate <- 0.1
+alpha_pi <- rep(1, K)
+
+# Initialization
+set.seed(123)
+z <- sample(1:K, n, replace = TRUE)
+mu <- rnorm(K, mu_prior_mean, sqrt(mu_prior_var))
+tau <- rgamma(K, tau_shape, rate = tau_rate)
+pi <- rdirichlet(1, alpha_pi)[1, ]
+
+# Storage
+n_iter <- 10000
+burn_in <- 1000
+mu_samples <- matrix(NA, nrow = n_iter, ncol = K)
+tau_samples <- matrix(NA, nrow = n_iter, ncol = K)
+pi_samples <- matrix(NA, nrow = n_iter, ncol = K)
+
+# Gibbs sampler
+for (iter in 1:n_iter) {
+  # Step 1: Sample z_i
+  for (i in 1:n) {
+    probs <- sapply(1:K, function(k) {
+      pi[k] * dnorm(x[i], mean = mu[k], sd = sqrt(1 / tau[k]))
+    })
+    z[i] <- sample(1:K, 1, prob = probs / sum(probs))
+  }
+  
+  # Step 2: Sample mu_k
+  for (k in 1:K) {
+    x_k <- x[z == k]
+    n_k <- length(x_k)
+    if (n_k > 0) {
+      post_var <- 1 / (tau[k] * n_k + 1 / mu_prior_var)
+      post_mean <- post_var * (tau[k] * sum(x_k))
+      mu[k] <- rnorm(1, post_mean, sqrt(post_var))
+    } else {
+      mu[k] <- rnorm(1, mu_prior_mean, sqrt(mu_prior_var))
+    }
+  }
+  
+  # Step 3: Sample tau_k
+  for (k in 1:K) {
+    x_k <- x[z == k]
+    n_k <- length(x_k)
+    shape_post <- tau_shape + n_k / 2
+    rate_post <- tau_rate + 0.5 * sum((x_k - mu[k])^2)
+    tau[k] <- rgamma(1, shape_post, rate_post)
+  }
+  
+  # Step 4: Sample pi
+  n_k <- table(factor(z, levels = 1:K))
+  pi <- rdirichlet(1, alpha_pi + n_k)[1, ]
+  
+  # Store samples
+  mu_samples[iter, ] <- mu
+  tau_samples[iter, ] <- tau
+  pi_samples[iter, ] <- pi
+}
+
+# Remove burn-in
+mu_post <- mu_samples[(burn_in + 1):n_iter, ]
+tau_post <- tau_samples[(burn_in + 1):n_iter, ]
+pi_post <- pi_samples[(burn_in + 1):n_iter, ]
+
+# Posterior summaries
+posterior_summary <- function(samples) {
+  apply(samples, 2, function(x) c(mean = mean(x), var = var(x)))
+}
+
+cat("Posterior Means and Variances for mu_k:\n")
+print(posterior_summary(mu_post))
+
+cat("Posterior Means and Variances for tau_k:\n")
+print(posterior_summary(tau_post))
+
+cat("Posterior Means and Variances for pi_k:\n")
+print(posterior_summary(pi_post))
+
+# Trace plots
+par(mfrow = c(3, 3))
+for (k in 1:K) {
+  plot(mu_post[, k], type = "l", main = paste("Trace: mu", k), xlab = "Iteration", ylab = expression(mu[k]))
+  plot(tau_post[, k], type = "l", main = paste("Trace: tau", k), xlab = "Iteration", ylab = expression(tau[k]))
+  plot(pi_post[, k], type = "l", main = paste("Trace: pi", k), xlab = "Iteration", ylab = expression(pi[k]))
+}
+```
+
+### e
+
+Variational Family Assumption
+In mean-field variational Bayes (MFVB), we approximate the true posterior distribution with a factorized variational distribution:
+\begin{equation*}
+q(\mu, \tau, z) = \prod_{k=1}^K q(\mu_k) q(\tau_k) \prod_{i=1}^n q(z_i)
+\end{equation*}
+where:
+\begin{align}
+q(\mu_k) \sim \mathcal{N}(m_k, s_k^2) \\
+q(\tau_k) \sim \text{Gamma}(a_k, b_k) \\
+q(z_i) \sim \text{Categorical}(\phi_{i1}, \dots, \phi_{iK}) \\
+\end{align}
+We then compute the conditional of $\pi_k$ by 
+\begin{align}
+\pi \mid \{x_i\} \sim \text{Dirichlet}(1 + a_1, \dots, 1 + a_K) \\
+a_k = \sum_{i=1}^N h(z_i=k \mid \{x_i\}) = \sum_{i=1}^N \phi_{ik},
+\end{align}
+since $a_k$ follows a multinominal distribution with Dirichlet prior.
+
+Expectations Required for Updates
+To update the variational parameters, we take expectations under the current variational distributions.
+1. Expectation of Log Precision $\mathbb{E}[\log \tau_k]$
+Given $\tau_k \sim \text{Gamma}(a_k, b_k)$, the expectation is:
+\begin{equation}
+\mathbb{E}[\log \tau_k] = \psi(a_k) - \log(b_k)
+\end{equation}
+where $\psi$ is the digamma function.
+
+2. Expectation of Precision $\mathbb{E}[\tau_k]$
+\begin{equation}
+\mathbb{E}[\tau_k] = \frac{a_k}{b_k}
+\end{equation}
+
+3. Expectation of Quadratic Term $\mathbb{E}[(x_i - \mu_k)^2]$
+Given $\mu_k \sim \mathcal{N}(m_k, s_k^2)$, we compute:
+\begin{equation}
+\mathbb{E}[(x_i - \mu_k)^2] = x_i^2 - 2x_i m_k + m_k^2 + s_k^2
+\end{equation}
+These are used in the update of $\phi_{ik}$.
+
+4. Update of $ \phi_{ik} $
+Using the expectations above, we compute:
+\begin{equation}
+\log \phi_{ik} \propto \mathbb{E}[\log \pi_k] + \frac{1}{2} \mathbb{E}[\log \tau_k] - \frac{1}{2} \mathbb{E}[\tau_k] \cdot \mathbb{E}[(x_i - \mu_k)^2]
+\end{equation}
+Then normalize:
+\begin{equation}
+\phi_{ik} = \frac{\exp(\log \phi_{ik})}{\sum_{j=1}^K \exp(\log \phi_{ij})}
+\end{equation}
+
+5. Update of $\mu_k$ Variational Parameters
+Let $N_k = \sum_{i=1}^n \phi_{ik}$, and $\bar{x}_k = \frac{1}{N_k} \sum_{i=1}^n \phi_{ik} x_i$. Then,
+\begin{align}
+s_k^2 = \frac{1}{\mathbb{E}[\tau_k] N_k + 1} \\
+m_k = s_k^2 \cdot \mathbb{E}[\tau_k] N_k \bar{x}_k
+\end{align}
+
+6. Update of $\tau_k$ Variational Parameters
+\begin{align}
+a_k = a_0 + \frac{N_k}{2} \\
+b_k = b_0 + \frac{1}{2} \sum_{i=1}^n \phi_{ik} \cdot \mathbb{E}[(x_i - \mu_k)^2]
+\end{align}
+
+
+
+These expectations and updates form the core of the coordinate ascent algorithm in mean-field variational Bayes for Gaussian mixture models.
+
+```{r 1e}
+
+## e
+# Load necessary libraries
+library(MCMCpack)  # for rdirichlet
+
+x <- data$y
+n <- length(x)
+K <- 3
+
+# Initialize variational parameters
+set.seed(123)
+phi <- matrix(1/K, nrow = n, ncol = K)  # phi[i, k] = q(z_i = k)
+mu_mean <- rnorm(K, 0, 1)
+mu_var <- rep(1, K)
+tau_shape <- rep(1, K)
+tau_rate <- rep(1, K)
+alpha_prior <- rep(1, K)
+
+# Variational Bayes iterations
+max_iter <- 1000
+for (iter in 1:max_iter) {
+  # E-step: Update phi_{i,k}
+  for (i in 1:n) {
+    for (k in 1:K) {
+      E_log_tau <- digamma(tau_shape[k]) - log(tau_rate[k])
+      E_tau <- tau_shape[k] / tau_rate[k]
+      log_phi_ik <- 0.5 * E_log_tau -
+        0.5 * E_tau * (x[i]^2 - 2 * x[i] * mu_mean[k] + mu_mean[k]^2 + mu_var[k])
+      phi[i, k] <- log_phi_ik
+    }
+    phi[i, ] <- exp(phi[i, ] - max(phi[i, ]))  # numerical stability
+    phi[i, ] <- phi[i, ] / sum(phi[i, ])
+  }
+  
+  # M-step: Update q(mu_k), q(tau_k)
+  Nk <- colSums(phi)
+  for (k in 1:K) {
+    x_bar_k <- sum(phi[, k] * x) / Nk[k]
+    mu_var[k] <- 1 / (Nk[k] * (tau_shape[k] / tau_rate[k]) + 1)
+    mu_mean[k] <- mu_var[k] * (tau_shape[k] / tau_rate[k]) * Nk[k] * x_bar_k
+    sq_diff <- (x - mu_mean[k])^2 + mu_var[k]
+    tau_shape[k] <- 0.1 + 0.5 * Nk[k]
+    tau_rate[k] <- 0.1 + 0.5 * sum(phi[, k] * sq_diff)
+  }
+  
+  # Update pi using its complete conditional posterior
+  pi <- as.numeric(rdirichlet(1, alpha_prior + Nk))
+}
+
+# Print final variational parameters
+cat("\nFinal Variational Parameters:\n")
+
+cat("\nmu_mean:\n")
+print(mu_mean)
+
+cat("\nmu_var:\n")
+print(mu_var)
+
+cat("\ntau_shape:\n")
+print(tau_shape)
+
+cat("\ntau_rate:\n")
+print(tau_rate)
+
+cat("\nphi (first 5 rows):\n")
+print(round(phi[1:5, ], 4))  # show first 5 data points' responsibilities
+
+cat("\nEstimated posterior Dirichlet parameters for pi:\n")
+print(alpha_prior + colSums(phi))
+
+# Generate posterior samples
+n_samples <- 10000
+burn_in <- 1000
+mu_samples <- matrix(NA, nrow = n_samples, ncol = K)
+tau_samples <- matrix(NA, nrow = n_samples, ncol = K)
+pi_samples <- matrix(NA, nrow = n_samples, ncol = K)
+
+for (s in 1:n_samples) {
+  for (k in 1:K) {
+    mu_samples[s, k] <- rnorm(1, mu_mean[k], sqrt(mu_var[k]))
+    tau_samples[s, k] <- rgamma(1, tau_shape[k], rate = tau_rate[k])
+  }
+  Nk <- colSums(phi)
+  pi_samples[s, ] <- rdirichlet(1, alpha_prior + Nk)[1, ]
+}
+
+# Remove burn-in
+mu_post <- mu_samples[(burn_in + 1):n_samples, ]
+tau_post <- tau_samples[(burn_in + 1):n_samples, ]
+pi_post <- pi_samples[(burn_in + 1):n_samples, ]
+
+# Posterior summaries
+posterior_summary <- function(samples) {
+  apply(samples, 2, function(x) c(mean = mean(x), var = var(x)))
+}
+
+cat("Posterior Means and Variances for mu_k:\n")
+print(posterior_summary(mu_post))
+
+cat("Posterior Means and Variances for tau_k:\n")
+print(posterior_summary(tau_post))
+
+cat("Posterior Means and Variances for pi_k:\n")
+print(posterior_summary(pi_post))
+
+# Trace plots
+par(mfrow = c(3, 3))
+for (k in 1:K) {
+  plot(mu_post[, k], type = "l", main = paste("Trace: mu", k), xlab = "Iteration", ylab = expression(mu[k]))
+  plot(tau_post[, k], type = "l", main = paste("Trace: tau", k), xlab = "Iteration", ylab = expression(tau[k]))
+  plot(pi_post[, k], type = "l", main = paste("Trace: pi", k), xlab = "Iteration", ylab = expression(pi[k]))
+}
+```
+
+### f
+We apply the birth or death approach with acceptance probability
+\begin{equation}
+A = \frac{p(k+1)}{p(k)} \cdot \frac{1}{B(k\alpha, \alpha)} \cdot w_{j^*}^{\alpha - 1} (1 - w_{j^*})^{n + k\alpha - k} \cdot \frac{(k+1) d_{k+1}}{(k_0 + 1) b_k} \cdot g_{1,k}(w_{j^*}) \cdot (1 - w_{j^*})^k
+\end{equation}
+```{r 1f}
+# RJMCMC for Gaussian Mixtures with Birth/Death Acceptance Ratio
+
+rjmcmc_gmm_birth_death <- function(x, k_max = 10, n_iter = 10000, burn_in = 1000) {
+  N <- length(x)
+  K <- 1
+  z <- rep(1, N)
+  mu <- rnorm(1, 0, 1)
+  tau <- rgamma(1, shape = 0.1, rate = 0.1)
+  pi <- 1
+
+  samples <- list(k = numeric(n_iter), mu = list(), tau = list(), pi = list(), z = list())
+
+  for (iter in 1:n_iter) {
+    # Update z_i
+#    probs <- sapply(1:K, function(k) pi[k] * dnorm(x, mean = mu[k], sd = sqrt(1 / tau[k])))
+#    probs <- t(probs)
+#    z <- sapply(1:N, function(i) {
+#    p <- probs[i, ]
+#    p <- p / sum(p)  # Normalize to ensure valid probabilities
+#    sample(1:K, 1, prob = p)
+#    })
+    for (i in 1:N) {
+      probs <- sapply(1:K, function(k) {
+        pi[k] * dnorm(x[i], mean = mu[k], sd = sqrt(1 / tau[k]))
+      })
+      z[i] <- sample(1:K, 1, prob = probs / sum(probs))
+    }
+
+    # Update mu_k and tau_k
+    mu_new <- numeric(K)
+    tau_new <- numeric(K)
+    nk <- table(factor(z, levels = 1:K))
+    for (k in 1:K) {
+      xk <- x[z == k]
+      nk_k <- length(xk)
+      tau_k <- tau[k]
+      mu_k <- rnorm(1, mean = (tau_k * sum(xk)) / (tau_k * nk_k + 1),
+                    sd = sqrt(1 / (tau_k * nk_k + 1)))
+      mu_new[k] <- mu_k
+
+      shape <- 0.1 + nk_k / 2
+      rate <- 0.1 + 0.5 * sum((xk - mu_k)^2)
+      tau_new[k] <- rgamma(1, shape = shape, rate = rate)
+    }
+    mu <- mu_new
+    tau <- tau_new
+
+    # Update pi
+    alpha <- rep(1, K)
+    pi <- as.numeric(rdirichlet(1, alpha + nk))
+
+    # RJMCMC move: birth or death
+    b_k <- ifelse(K < k_max, 0.5, 0)
+    d_k <- ifelse(K > 1, 0.5, 0)
+
+    if (runif(1) < b_k) {
+      # Birth move
+      w_new <- rbeta(1, 1, K)
+      mu_new <- rnorm(1, 0, 1)
+      tau_new <- rgamma(1, 0.1, 0.1)
+
+      # Rescale existing weights to make space
+      pi <- pi * (1 - w_new)
+      pi <- c(pi, w_new)
+      pi <- pi / sum(pi)
+
+      mu <- c(mu, mu_new)
+      tau <- c(tau, tau_new)
+      K <- K + 1
+    } else if (runif(1) < d_k && K > 1) {
+      # Death move
+      empty <- which(table(factor(z, levels = 1:K)) == 0)
+      if (length(empty) > 0) {
+        j <- sample(empty, 1)
+
+        # Remove the empty component and rescale weights
+        pi <- pi[-j]
+        pi <- pi / sum(pi)
+        mu <- mu[-j]
+        tau <- tau[-j]
+        K <- K - 1
+      }
+    }
+
+    # Store samples
+    samples$k[iter] <- K
+    samples$mu[[iter]] <- mu
+    samples$tau[[iter]] <- tau
+    samples$pi[[iter]] <- pi
+    samples$z[[iter]] <- z
+  }
+
+  # Remove burn-in
+  samples$k <- samples$k[(burn_in + 1):n_iter]
+  samples$mu <- samples$mu[(burn_in + 1):n_iter]
+  samples$tau <- samples$tau[(burn_in + 1):n_iter]
+  samples$pi <- samples$pi[(burn_in + 1):n_iter]
+  samples$z <- samples$z[(burn_in + 1):n_iter]
+
+  return(samples)
+}
+
+# Dirichlet sampler
+rdirichlet <- function(n, alpha) {
+  MCMCpack::rdirichlet(n, alpha)
+}
+```
+
+```{r 1f1}
+
+# Posterior summaries and trace plots
+summarize_and_plot <- function(samples) {
+  cat("Posterior mean of K:", mean(samples$k), "
+")
+  cat("Posterior variance of K:", var(samples$k), "
+")
+
+  mu_flat <- unlist(samples$mu)
+  tau_flat <- unlist(samples$tau)
+  pi_flat <- unlist(samples$pi)
+
+  cat("Posterior mean of mu:", mean(mu_flat), "
+")
+  cat("Posterior variance of mu:", var(mu_flat), "
+")
+  cat("Posterior mean of sigma^2:", mean(1 / tau_flat), "
+")
+  cat("Posterior variance of sigma^2:", var(1 / tau_flat), "
+")
+  cat("Posterior mean of pi:", mean(pi_flat), "
+")
+  cat("Posterior variance of pi:", var(pi_flat), "
+")
+
+  if (requireNamespace("ggplot2", quietly = TRUE)) {
+    library(ggplot2)
+    df_k <- data.frame(iter = 1:length(samples$k), K = samples$k)
+    print(ggplot(df_k, aes(x = iter, y = K)) + geom_line() + ggtitle("Trace plot of K"))
+
+    df_mu <- data.frame(iter = rep(1:length(samples$mu), sapply(samples$mu, length)),
+                        mu = unlist(samples$mu))
+    print(ggplot(df_mu, aes(x = iter, y = mu)) + geom_line() + ggtitle("Trace plot of mu"))
+
+    df_sigma2 <- data.frame(iter = rep(1:length(samples$tau), sapply(samples$tau, length)),
+                            sigma2 = 1 / unlist(samples$tau))
+    print(ggplot(df_sigma2, aes(x = iter, y = sigma2)) + geom_line() + ggtitle("Trace plot of sigma^2"))
+
+    df_pi <- data.frame(iter = rep(1:length(samples$pi), sapply(samples$pi, length)),
+                        pi = unlist(samples$pi))
+    print(ggplot(df_pi, aes(x = iter, y = pi)) + geom_line() + ggtitle("Trace plot of pi"))
+  }
+}
+```
+
+```{r 1f3}
+set.seed(123)
+samples <- rjmcmc_gmm_birth_death(x)
+summarize_and_plot(samples)
+```
