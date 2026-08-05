@@ -1,0 +1,1350 @@
+---
+title: "STAT6011 Assignment 3"
+author: "Lee Lap San 3036373312"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# 1a
+
+## Lemma
+
+We will make use of the following lemma and corollary often in this section:
+
+**Lemma 1** _For every random variable $X$ with $\mathbb{E}X<\infty$ and finite real number $c$, _
+\begin{equation}
+\mathbb{E}(X-c)^2=(\mathbb{E}X-c)^2+Var(X)
+\end{equation}
+
+Proof:
+$E(X-c)^2=E[(X-EX)+(EX-c)]^2=E(X-EX)^2+2E(X-EX)(EX-c)+(EX-c)^2=(EX-c)^2+Var(X)$
+
+
+**Corollary 1** _For finite real numbers $u, \{c_i, d_i\}_{i=1}^n$, suppose $d_i > 0$ for every $i$, then _
+\begin{align}
+\sum_{i=1}^n d_i(u-c_i)^2 &= (\sum_{i=1}^n d_i)(u-\sum_{i=1}^n\frac{d_i}{\sum_{i=1}^n d_i}c_i)^2 + \sum_{i=1}^n d_i(c_i - \sum_{i=1}^n \frac{d_i}{\sum_{i=1}^n d_i}c_i)^2  \\
+&= (\sum_{i=1}^n d_i)(u-\sum_{i=1}^n\frac{d_i}{\sum_{i=1}^n d_i}c_i)^2 + \sum_{i=1}^n d_i c_i^2 - \frac{(\sum_{i=1}^n d_i c_i)^2}{(\sum_{i=1}^n d_i)}
+\end{align}
+
+Proof:
+Consider a discrete random variable $T$ with
+\begin{align}
+P(T=t)=
+\begin{cases}
+\frac{d_i}{\sum_{i=1}^n d_i} &\quad\text{, if } t=c_i \\
+0 &\quad\text{, otherwise}
+\end{cases}
+\end{align}
+and then apply lemma 1.
+
+## Model Specification
+
+We consider the random-effects model:
+
+\[
+y_{ij} = \beta_0 + \beta_1 x_{ij} + u_i + \varepsilon_{ij}, \quad
+\varepsilon_{ij} \sim N(0, \sigma_\varepsilon^2), \quad
+u_i \sim N(0, \sigma_u^2)
+\]
+
+for \( i = 1,\dots,n \) and \( j = 1,\dots,J \).
+
+The unknown parameter vector is:
+
+\[
+\theta = (\beta_0, \beta_1, \sigma_u^2, \sigma_\varepsilon^2)^\top
+\]
+
+## Complete-Data Log-Likelihood
+
+The joint density:
+
+\[
+L_c(\mathbf(\theta)) = \prod_{i=1}^n (f(y_{ij}, u_i \mid \theta)) = \prod_{i=1}^n (f(u_i) \prod_{j=1}^J f(y_{ij} \mid u_i))
+\]
+
+where:
+
+\[
+u_i \sim N(0, \sigma_u^2), \quad
+y_{ij} \mid u_i \sim N(\beta_0 + \beta_1 x_{ij} + u_i, \sigma_\varepsilon^2)
+\]
+
+Thus, the complete log-likelihood is:
+
+\[
+\ell_c(\theta) =
+\sum_{i=1}^n \Bigg[
+-\frac{J}{2}\log(2\pi\sigma_\varepsilon^2)
+-\frac{1}{2\sigma_\varepsilon^2}\sum_{j=1}^J (y_{ij} - \beta_0 - \beta_1 x_{ij} - u_i)^2
+-\frac{1}{2}\log(2\pi\sigma_u^2)
+-\frac{u_i^2}{2\sigma_u^2}
+\Bigg]
+\]
+
+Expanding constants:
+
+\begin{align}
+\ell_c(\theta) &=
+-\frac{nJ}{2}\log(2\pi)
+-\frac{nJ}{2}\log\sigma_\varepsilon^2
+-\frac{1}{2\sigma_\varepsilon^2}\sum_{i,j}(y_{ij} - \beta_0 - \beta_1 x_{ij} - u_i)^2
+-\frac{n}{2}\log(2\pi)
+-\frac{n}{2}\log\sigma_u^2
+-\frac{1}{2\sigma_u^2}\sum_i u_i^2 \\
+&= -\frac{n(J+1)}{2}\log(2\pi)
+-\frac{nJ}{2}\log\sigma_\varepsilon^2
+-\frac{1}{2\sigma_\varepsilon^2}\sum_{i,j}(y_{ij} - \beta_0 - \beta_1 x_{ij} - u_i)^2
+-\frac{n}{2}\log\sigma_u^2
+-\frac{1}{2\sigma_u^2}\sum_i u_i^2
+\end{align}
+
+## E-Step: Q-Function
+
+The Q-function is:
+
+\[
+Q(\theta \mid y, \theta^{(t)}) = \mathbb{E}_{u \mid y, \theta^{(t)}}[\ell_c(\theta)]
+\]
+
+### Conditional distribution
+Noting that $u_i$ depends only on $\{y_{ij}\}_j$, conditional distribution $h(u_i \mid \{y_{ij}\}_{ij},\mathbf{\theta})$ is given by:
+\begin{align}
+h(u_i \mid \{y_{ij}\}_{ij},\mathbf{\theta}) &= h(u_i \mid \{y_{ij}\}_j,\mathbf{\theta}) \\
+&\propto f(y_{ij}, u_i \mid \theta) \\
+&= \exp(l_c(\theta)) \\
+&\propto \exp(-\frac{1}{2}[\frac{1}{\sigma_\varepsilon^2}\sum_{i,j}(y_{ij} - \beta_0 - \beta_1 x_{ij} - u_i)^2+\frac{1}{\sigma_u^2}\sum_i u_i^2]) \\
+&\propto \exp(-\frac{1}{2}[\frac{1}{\sigma_\varepsilon^2}\sum_{j}(y_{ij} - \beta_0 - \beta_1 x_{ij} - u_i)^2+\frac{1}{\sigma_u^2} u_i^2]) \\
+&\propto \exp(-\frac{1}{2}[\frac{1}{C}(u_i-m_i)^2])
+\end{align}
+where by corollary 1,
+\begin{equation}
+m_i=\frac{\frac{1}{\sigma_\varepsilon^2}\sum_j (y_{ij} - \beta_0 - \beta_1 x_{ij})}{\frac{J}{\sigma_\varepsilon^2}+\frac{1}{\sigma_u^2}} = \frac{\sigma_u^2}{J\sigma_u^2 + \sigma_\varepsilon^2} \sum_{j=1}^J (y_{ij} - \beta_0 - \beta_1 x_{ij}), \\ C=(\frac{J}{\sigma_\varepsilon^2}+\frac{1}{\sigma_u^2})^{-1}=\frac{\sigma_u^2 \sigma_\varepsilon^2}{J\sigma_u^2 + \sigma_\varepsilon^2}
+\end{equation}
+
+Thus, $u_i \mid \theta, y \sim N(m_i, C)$
+
+Note also that $\{u_i\}_i$ are independent, plugging in:
+
+\[
+Q(\theta) =
+-\frac{nJ}{2}\log(2\pi)
+-\frac{nJ}{2}\log\sigma_\varepsilon^2
+-\frac{1}{2\sigma_\varepsilon^2}\sum_{i,j}\mathbb{E}_{u \mid y, \theta^{(t)}}[(y_{ij} - \beta_0 - \beta_1 x_{ij} - u_i)^2]
+-\frac{n}{2}\log(2\pi)
+-\frac{n}{2}\log\sigma_u^2
+-\frac{1}{2\sigma_u^2}\sum_i \mathbb{E}_{u \mid y, \theta^{(t)}}[u_i^2]
+\]
+
+Expand the expectation, employing lemma 1:
+
+\[
+\mathbb{E}_{u \mid y, \theta^{(t)}}[(y_{ij} - \beta_0 - \beta_1 x_{ij} - u_i)^2] = (y_{ij} - \beta_0 - \beta_1 x_{ij} - \mathbb{E}_{u \mid y, \theta^{(t)}}u_i)^2 + Var_{u \mid y, \theta^{(t)}}(u_i) = (y_{ij} - \beta_0 - \beta_1 x_{ij} - m_i^{(t)})^2 + C^{(t)}
+\]
+
+and
+
+\[
+\mathbb{E}_{u \mid y, \theta^{(t)}}[u_i^2] = \mathbb{E}^2_{u \mid y, \theta^{(t)}}u_i + Var_{u \mid y, \theta^{(t)}}(u_i) = (m_i^{(t)})^2 + C^{(t)}
+\]
+
+So:
+
+\begin{align}
+Q(\theta \mid y, \theta^{(t)}) \\
+&= -\frac{nJ}{2}\log(2\pi)
+-\frac{nJ}{2}\log\sigma_\varepsilon^2
+-\frac{1}{2\sigma_\varepsilon^2}\sum_{i,j}[(y_{ij} - \beta_0 - \beta_1 x_{ij} - m_i^{(t)})^2 + C^{(t)}]
+-\frac{n}{2}\log(2\pi)
+-\frac{n}{2}\log\sigma_u^2
+-\frac{1}{2\sigma_u^2}\sum_i((m_i^{(t)})^2 + C^{(t)}) \\
+&= -\frac{n(J+1)}{2}\log(2\pi)
+-\frac{nJ}{2}\log\sigma_\varepsilon^2
+-\frac{1}{2\sigma_\varepsilon^2}\sum_{i,j}[(y_{ij} - \beta_0 - \beta_1 x_{ij} - m_i^{(t)})^2 + C^{(t)}]
+-\frac{n}{2}\log\sigma_u^2
+-\frac{1}{2\sigma_u^2}\sum_i((m_i^{(t)})^2 + C^{(t)})
+\end{align}
+
+## M-Step Updates
+
+### Fixed Effects (\(\beta_0, \beta_1\))
+
+We minimize:
+
+\[
+\sum_{i,j}(y_{ij} - \beta_0 - \beta_1 x_{ij} - m_i)^2
+\]
+
+Define:
+
+\[
+\tilde{y}_{ij} = y_{ij} - m_i
+\]
+
+Then the OLS estimates are:
+
+\[
+\hat{\beta}_1 = \frac{\sum_{i,j}(x_{ij} - \bar{x})(\tilde{y}_{ij} - \bar{\tilde{y}})}{\sum_{i,j}(x_{ij} - \bar{x})^2}, \quad
+\hat{\beta}_0 = \bar{\tilde{y}} - \hat{\beta}_1 \bar{x}
+\]
+
+where:
+
+\[
+\bar{x} = \frac{1}{nJ}\sum_{i,j} x_{ij}, \quad
+\bar{\tilde{y}} = \frac{1}{nJ}\sum_{i,j} \tilde{y}_{ij}
+\]
+
+### Variance Component Updates
+
+For \(\sigma_\varepsilon^2\):
+
+\[
+\frac{\partial Q}{\partial \sigma_\varepsilon^2} =
+-\frac{nJ}{2\sigma_\varepsilon^2}
++ \frac{1}{2\sigma_\varepsilon^4}\sum_{i,j}[(y_{ij} - \beta_0 - \beta_1 x_{ij} - m_i^{(t)})^2 + C^{(t)}]
+\]
+
+Setting derivative = 0 gives:
+
+\[
+\hat{\sigma}_\varepsilon^2 = \frac{1}{nJ}\sum_{i,j}[(y_{ij} - \beta_0 - \beta_1 x_{ij} - m_i^{(t)})^2 + C^{(t)}] = \frac{1}{nJ}\sum_{i,j}[(y_{ij} - \beta_0 - \beta_1 x_{ij} - m_i^{(t)})^2] + C^{(t)}
+\]
+
+For \(\sigma_u^2\):
+
+\[
+\frac{\partial Q}{\partial \sigma_u^2} =
+-\frac{n}{2\sigma_u^2}
++ \frac{1}{2\sigma_u^4}\sum_i((m_i^{(t)})^2 + C^{(t)})
+\]
+
+Setting derivative = 0 gives:
+
+\[
+\hat{\sigma}_u^2 = \frac{1}{n}\sum_i((m_i^{(t)})^2 + C^{(t)}) = \frac{1}{n}\sum_i((m_i^{(t)})^2) + C^{(t)}
+\]
+
+## EM Algorithm Summary
+
+1. **Initialize** \(\theta^{(0)} = (\beta_0^{(0)}, \beta_1^{(0)}, \sigma_u^{2(0)}, \sigma_\varepsilon^{2(0)})\).
+2. **E-Step**: Compute \(m_i\) and \(C\) for all \(i\).
+3. **M-Step**: Update \(\beta_0, \beta_1, \sigma_u^2, \sigma_\varepsilon^2\) using formulas above.
+4. Repeat until convergence.
+
+# 1b
+
+Data loading:
+```{r readdata, message=FALSE}
+# Read the CSV file
+data <- read.csv("q1.csv")
+
+
+# Convert to wide format for convenience: rows = clusters, columns = observations
+suppressWarnings(library(tidyr))
+x_wide <- pivot_wider(data, id_cols = i, names_from = j, values_from = x)
+y_wide <- pivot_wider(data, id_cols = i, names_from = j, values_from = y)
+
+# Extract matrices
+x_mat <- as.matrix(x_wide[,-1])  # remove cluster ID column
+y_mat <- as.matrix(y_wide[,-1])
+x <- x_mat
+y <- y_mat
+
+# Number of clusters and observations per cluster
+n <- nrow(x_mat)
+J <- ncol(x_mat)
+
+# Check dimensions
+cat("n =", n, "clusters; J =", J, "observations per cluster\n")
+```
+
+Here we use the observed-data log-likelihood for convergence check. Check 1(c) for derivation.
+```{r observed-loglikf}
+
+# Compute observed data log-likelihood
+ologlik <- function (par) {
+  
+  beta0 <- par[1]; beta1 <- par[2]; sigma_u2 <- par[3]; sigma_e2 <- par[4]
+  
+  # Compute a_ij and C
+  a <- y - beta0 - beta1 * x
+  sum_a2 <- sum(a^2)
+  row_sums_a <- rowSums(a)
+  sum_row_sqs <- sum(row_sums_a^2)
+  sum_x <- sum(x)
+  sum_x2 <- sum(x^2)
+  C <- (sigma_u2 * sigma_e2) / (J * sigma_u2 + sigma_e2)
+  
+  l <- -(n * J / 2) * log(2 * pi) +
+    (n /2) * log(C) -
+    (n * J / 2) * log(sigma_e2) -
+    (n / 2) * log(sigma_u2) -
+    (sum_a2 / (2 * sigma_e2)) +
+    (C * sum_row_sqs) / (2 * sigma_e2^2)
+  l
+}
+
+```
+
+We pool all the clusters and use the OLS estimate as initial estimate of $\beta_0, \beta_1, \sigma_\varepsilon^2$. For $\sigma_u^2$, we use sample variance of cluster means as initial estimates.
+```{r initialization}
+# Set seed for reproducibility
+set.seed(123)
+
+# Initial estimates
+lm_fit <- lm(y ~ x, data = data)
+beta0_init <- coef(lm_fit)[1]
+beta1_init <- coef(lm_fit)[2]
+sigma_e2_init <- var(resid(lm_fit))
+cluster_means <- aggregate(y ~ i, data = data, mean)$y
+sigma_u2_init <- var(cluster_means)
+
+{
+cat("Initial beta0:", beta0_init, "\n")
+cat("Initial beta1:", beta1_init, "\n")
+cat("Initial sigma_e^2:", sigma_e2_init, "\n")
+cat("Initial sigma_u^2:", sigma_u2_init, "\n")
+}
+```
+
+EM algorithm implementation:
+```{r em_algorithm}
+# Global parameters for convergence check
+tol <- 1e-6
+max_iter <- 100
+
+# Initialize parameters
+beta0 <- beta0_init
+beta1 <- beta1_init
+sigma_u2 <- sigma_u2_init
+sigma_e2 <- sigma_e2_init
+
+loglik <- numeric(max_iter)
+converged_em <- FALSE
+converged_iter_em <- max_iter
+
+# EM Algorithm
+for (iter in 1:max_iter) {
+  
+  # Compute observed-data log-likelihood for convergence check
+  loglik[iter] <- ologlik(c(beta0, beta1, sigma_u2, sigma_e2))
+  
+  # Check convergence
+  if (!converged_em && iter > 1 && abs(loglik[iter] - loglik[iter - 1]) < tol) {
+    converged_em <- TRUE
+    converged_iter_em <- iter
+    #break
+  }
+  
+  # E-step: compute C^(t) and m_i^(t)
+  C <- (sigma_u2 * sigma_e2) / (J * sigma_u2 + sigma_e2)
+  resid_sum <- rowSums(y - beta0 - beta1 * x)
+  m <- (sigma_u2 * resid_sum) / (J * sigma_u2 + sigma_e2)
+  
+  # M-step: update beta0 and beta1 using OLS on y_ij - m_i
+  y_tilde <- as.vector(y - m)
+  x_vec <- as.vector(x)
+  beta1 <- sum((x_vec - mean(x_vec)) * (y_tilde - mean(y_tilde))) / sum((x_vec - mean(x_vec))^2)
+  beta0 <- mean(y_tilde) - beta1 * mean(x_vec)
+  # Update variance components
+  sigma_u2 <- mean(m^2 + C)
+  sigma_e2 <- (sum((y - beta0 - beta1 * x - m)^2) / (n * J)) + C
+  
+}
+
+# Plot observed log-likelihood vs iteration
+plot(1:max_iter, loglik[1:max_iter], type = "l", col = "blue", lwd = 2,
+     xlab = "Iteration", ylab = "Observed Data Log-Likelihood",
+     main = "EM Algorithm Convergence")
+grid()
+plot((converged_iter_em-2):max_iter, loglik[(converged_iter_em-2):max_iter], type = "l", col = "blue", lwd = 2,
+     xlab = "Iteration", ylab = "Observed Data Log-Likelihood",
+     main = "EM Algorithm Convergence (Closer look)")
+grid()
+
+# Print estimates
+{
+cat("Estimated beta0:", beta0, "\n")
+cat("Estimated beta1:", beta1, "\n")
+cat("Estimated sigma_u^2:", sigma_u2, "\n")
+cat("Estimated sigma_e^2:", sigma_e2, "\n")
+if (converged_em) {
+  cat("EM algorithm converged at iteration:", converged_iter_em, " at tolerance 1e-6\n")
+  cat('EM Estimated Maximum Observed-data Log-likelihood: ', loglik[converged_iter_em])
+} else {
+  cat("EM algorithm did not converge.")
+}
+}
+```
+
+# 1c Observed Data Likelihood Derivation
+
+Taking reference to the $\ell_c(\theta)$ derived above, and using corollary 1, we write:
+\begin{align}
+\log f(u_i, \{y_{ij}\}_{j=1}^J \mid \theta) &=
+-\frac{J+1}{2}\log(2\pi)
+-\frac{J}{2}\log\sigma_\varepsilon^2
+-\frac{1}{2}\log\sigma_u^2
+- \frac{1}{2}[\frac{1}{C}(u_i-m_i)^2 + \frac{1}{\sigma_\varepsilon^2}\sum_{j=1}^J a_{ij}^2 - \frac{C}{\sigma_\varepsilon^4}(\sum_{j=1}^J a_{ij})^2]
+\end{align}
+
+\begin{align}
+f(\{y_{ij}\}_{j=1}^J \mid \theta) &= \int_{u_i} f(u_i, \{y_{ij}\}_{j=1}^J \mid \theta) \\
+&= \int_{u_i} \exp(
+-\frac{J+1}{2}\log(2\pi)
+-\frac{J}{2}\log\sigma_\varepsilon^2
+-\frac{1}{2}\log\sigma_u^2
+- \frac{1}{2}[\frac{1}{C}(u_i-m_i)^2 + \frac{1}{\sigma_\varepsilon^2}\sum_{j=1}^J a_{ij}^2 - \frac{C}{\sigma_\varepsilon^4}(\sum_{j=1}^J a_{ij})^2]) \\
+&= \exp(
+-\frac{J+1}{2}\log(2\pi)
+-\frac{J}{2}\log\sigma_\varepsilon^2
+-\frac{1}{2}\log\sigma_u^2
+- \frac{1}{2}[\frac{1}{\sigma_\varepsilon^2}\sum_{j=1}^J a_{ij}^2 - \frac{C}{\sigma_\varepsilon^4}(\sum_{j=1}^J a_{ij})^2]) \cdot \sqrt{2\pi} \sqrt{C}\\
+&= \exp(
+-\frac{J}{2}\log(2\pi)
++ \frac{1}{2}\log C
+-\frac{J}{2}\log\sigma_\varepsilon^2
+-\frac{1}{2}\log\sigma_u^2
+- \frac{1}{2\sigma_\varepsilon^2}\sum_{j=1}^J a_{ij}^2 
++ \frac{C}{2\sigma_\varepsilon^4}(\sum_{j=1}^J a_{ij})^2),
+\end{align}
+where $a_{ij}= y_{ij} - \beta_0 - \beta_1 x_{ij}$, and $m_i, C$ as defined above.
+
+Observed data likelihood
+\begin{align}
+L(\theta \mid \{y_{ij}\}_{j=1}^J ) \\
+&= \prod_{i=1}^n f(\{y_{ij}\}_{j=1}^J \mid \theta) \\
+&= \exp(
+-\frac{nJ}{2}\log(2\pi)
++ \frac{n}{2}\log C
+-\frac{nJ}{2}\log\sigma_\varepsilon^2
+-\frac{n}{2}\log\sigma_u^2
+- \frac{1}{2\sigma_\varepsilon^2}\sum_{i,j} a_{ij}^2 
++ \frac{C}{2\sigma_\varepsilon^4}\sum_{i=1}^n \left(\sum_{j=1}^J a_{ij}\right)^2) \\
+&= (2\pi)^{-\frac{nJ}{2}}
+C^{\frac{n}{2}}
+\sigma_\varepsilon^{-nJ}
+\sigma_u^{-n}
+\exp(-\frac{1}{2}[\frac{1}{\sigma_\varepsilon^2} \sum_{i,j} a_{ij}^2 -
+\frac{C}{\sigma_\varepsilon^4}\sum_{i=1}^n \left(\sum_{j=1}^J a_{ij}\right)^2])
+\end{align}
+
+# 1d MLE via Newton-Raphson
+
+## Observed Log-Likelihood:
+Maximizing the observed data likelihood is the same as maximizing the observed data log-likelihood:
+\begin{align}
+l(\theta \mid \{y_{ij}\}_{j=1}^J ) = \log L(\theta \mid \{y_{ij}\}_{j=1}^J ) = 
+-\frac{nJ}{2}\log(2\pi)
++ \frac{n}{2}\log C
+-\frac{nJ}{2}\log\sigma_\varepsilon^2
+-\frac{n}{2}\log\sigma_u^2
+- \frac{1}{2\sigma_\varepsilon^2}\sum_{i,j} a_{ij}^2 
++ \frac{C}{2\sigma_\varepsilon^4}\sum_{i=1}^n \left(\sum_{j=1}^J a_{ij}\right)^2
+\end{align}
+
+
+## Derivatives of C and Log-Likelihood
+
+We have:
+\[
+C = \frac{\sigma_u^2 \, \sigma_\varepsilon^2}{J \sigma_u^2 + \sigma_\varepsilon^2}.
+\]
+
+### Derivatives of C:
+\[
+\frac{\partial C}{\partial \sigma_\varepsilon^2} = \frac{J (\sigma_u^2)^2}{(J \sigma_u^2 + \sigma_\varepsilon^2)^2}, \quad
+\frac{\partial C}{\partial \sigma_u^2} = \frac{(\sigma_\varepsilon^2)^2}{(J \sigma_u^2 + \sigma_\varepsilon^2)^2}.
+\]
+
+
+### Derivatives:
+
+#### With respect to \(\beta_0\):
+\[
+\frac{\partial \ell}{\partial \beta_0} =
+\left( \frac{1}{\sigma_\varepsilon^2} - \frac{C J}{\sigma_\varepsilon^4} \right) \sum_{i,j} a_{ij}.
+\]
+
+#### With respect to \(\beta_1\):
+\[
+\frac{\partial \ell}{\partial \beta_1} =
+\frac{1}{\sigma_\varepsilon^2}\sum_{i,j} a_{ij}x_{ij} -
+\frac{C}{\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right) \left( \sum_{j=1}^J x_{ij} \right).
+\]
+
+#### With respect to \(\sigma_u^2\):
+\[
+\frac{\partial \ell}{\partial \sigma_u^2} =
+\frac{n}{2}\frac{1}{C}\frac{\partial C}{\partial \sigma_u^2} -
+\frac{n}{2\sigma_u^2} +
+\frac{1}{2\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \frac{\partial C}{\partial \sigma_u^2},
+\]
+where \(\frac{\partial C}{\partial \sigma_u^2} = \frac{(\sigma_\varepsilon^2)^2}{(J\sigma_u^2 + \sigma_\varepsilon^2)^2}\).
+
+So:
+\[
+\frac{\partial \ell}{\partial \sigma_u^2} =
+\frac{n(\sigma_\varepsilon^2)^2}{2C(J\sigma_u^2 + \sigma_\varepsilon^2)^2} -
+\frac{n}{2\sigma_u^2} +
+\frac{\sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2}{2(J\sigma_u^2 + \sigma_\varepsilon^2)^2}.
+\]
+
+#### With respect to \(\sigma_\varepsilon^2\):
+\[
+\frac{\partial \ell}{\partial \sigma_\varepsilon^2} =
+\frac{n}{2}\frac{1}{C}\frac{\partial C}{\partial \sigma_\varepsilon^2} -
+\frac{nJ}{2\sigma_\varepsilon^2} +
+\frac{\sum a_{ij}^2}{2\sigma_\varepsilon^4} +
+\frac{1}{2\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \frac{\partial C}{\partial \sigma_\varepsilon^2} -
+\frac{C \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 }{\sigma_\varepsilon^6},
+\]
+where \(\frac{\partial C}{\partial \sigma_\varepsilon^2} = \frac{J(\sigma_u^2)^2}{(J\sigma_u^2 + \sigma_\varepsilon^2)^2}\).
+
+So:
+\[
+\frac{\partial \ell}{\partial \sigma_\varepsilon^2} =
+\frac{nJ(\sigma_u^2)^2}{2C(J\sigma_u^2 + \sigma_\varepsilon^2)^2} -
+\frac{nJ}{2\sigma_\varepsilon^2} +
+\frac{\sum a_{ij}^2}{2\sigma_\varepsilon^4} +
+\frac{J(\sigma_u^2)^2 \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 }{2\sigma_\varepsilon^4(J\sigma_u^2 + \sigma_\varepsilon^2)^2} -
+\frac{C \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 }{\sigma_\varepsilon^6}.
+\]
+
+## Hessian of the Observed Log-Likelihood
+
+### First Derivatives Recap
+\begin{aligned}
+\frac{\partial \ell}{\partial \beta_0} &= \left( \frac{1}{\sigma_\varepsilon^2} - \frac{C J}{\sigma_\varepsilon^4} \right) \sum a_{ij}, \\
+\frac{\partial \ell}{\partial \beta_1} &= \frac{1}{\sigma_\varepsilon^2}\sum a_{ij}x_{ij} - \frac{C}{\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right) \left( \sum_{j=1}^J x_{ij} \right), \\
+\frac{\partial \ell}{\partial \sigma_u^2} &= \frac{n}{2}\frac{1}{C}\frac{\partial C}{\partial \sigma_u^2} - \frac{n}{2\sigma_u^2} + \frac{1}{2\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \frac{\partial C}{\partial \sigma_u^2}, \\
+\frac{\partial \ell}{\partial \sigma_\varepsilon^2} &= \frac{n}{2}\frac{1}{C}\frac{\partial C}{\partial \sigma_\varepsilon^2} - \frac{nJ}{2\sigma_\varepsilon^2} + \frac{\sum a_{ij}^2}{2\sigma_\varepsilon^4} + \frac{1}{2\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \frac{\partial C}{\partial \sigma_\varepsilon^2} - \frac{C \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 }{\sigma_\varepsilon^6}.
+\end{aligned}
+
+### Derivatives of C
+\[
+\frac{\partial C}{\partial \sigma_u^2} = \frac{(\sigma_\varepsilon^2)^2}{(J\sigma_u^2 + \sigma_\varepsilon^2)^2}, \quad
+\frac{\partial C}{\partial \sigma_\varepsilon^2} = \frac{J(\sigma_u^2)^2}{(J\sigma_u^2 + \sigma_\varepsilon^2)^2}.
+\]
+
+Second derivatives:
+\[
+\frac{\partial^2 C}{\partial (\sigma_u^2)^2} = \frac{-2J(\sigma_\varepsilon^2)^2}{(J\sigma_u^2 + \sigma_\varepsilon^2)^3}, \quad
+\frac{\partial^2 C}{\partial (\sigma_\varepsilon^2)^2} = \frac{-2J^2(\sigma_u^2)^2}{(J\sigma_u^2 + \sigma_\varepsilon^2)^3}, \quad
+\frac{\partial^2 C}{\partial \sigma_u^2 \partial \sigma_\varepsilon^2} = \frac{2J\sigma_u^2\sigma_\varepsilon^2}{(J\sigma_u^2 + \sigma_\varepsilon^2)^3}.
+\]
+
+### Full Hessian Matrix \(H\) (4×4)
+\[
+H = \begin{pmatrix}
+H_{\beta_0,\beta_0} & H_{\beta_0,\beta_1} & H_{\beta_0,\sigma_u^2} & H_{\beta_0,\sigma_\varepsilon^2} \\
+H_{\beta_1,\beta_0} & H_{\beta_1,\beta_1} & H_{\beta_1,\sigma_u^2} & H_{\beta_1,\sigma_\varepsilon^2} \\
+H_{\sigma_u^2,\beta_0} & H_{\sigma_u^2,\beta_1} & H_{\sigma_u^2,\sigma_u^2} & H_{\sigma_u^2,\sigma_\varepsilon^2} \\
+H_{\sigma_\varepsilon^2,\beta_0} & H_{\sigma_\varepsilon^2,\beta_1} & H_{\sigma_\varepsilon^2,\sigma_u^2} & H_{\sigma_\varepsilon^2,\sigma_\varepsilon^2}
+\end{pmatrix}.
+\]
+
+### Entries
+
+#### 1. \(\beta_0,\beta_0\):
+\[
+H_{\beta_0,\beta_0} = -\frac{nJ}{\sigma_\varepsilon^2} + \frac{C n J^2}{\sigma_\varepsilon^4}.
+\]
+
+#### 2. \(\beta_1,\beta_1\):
+\[
+H_{\beta_1,\beta_1} = -\frac{\sum x_{ij}^2}{\sigma_\varepsilon^2} + \frac{C \sum_{i=1}^n \left( \sum_{j=1}^J x_{ij} \right)^2 }{\sigma_\varepsilon^4}.
+\]
+
+#### 3. \(\sigma_u^2,\sigma_u^2\):
+\[
+H_{\sigma_u^2,\sigma_u^2} =
+\frac{n}{2(\sigma_u^2)^2} +
+\frac{n}{2}\left[-\frac{1}{C^2}\left(\frac{\partial C}{\partial \sigma_u^2}\right)^2 + \frac{1}{C}\frac{\partial^2 C}{\partial (\sigma_u^2)^2}\right] +
+\frac{1}{2\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \frac{\partial^2 C}{\partial (\sigma_u^2)^2}.
+\]
+
+#### 4. \(\sigma_\varepsilon^2,\sigma_\varepsilon^2\):
+Start from:
+\[
+\frac{\partial \ell}{\partial \sigma_\varepsilon^2} =
+\frac{n}{2}\frac{1}{C}\frac{\partial C}{\partial \sigma_\varepsilon^2}
+- \frac{nJ}{2\sigma_\varepsilon^2}
++ \frac{\sum a_{ij}^2}{2\sigma_\varepsilon^4}
++ \frac{1}{2\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \frac{\partial C}{\partial \sigma_\varepsilon^2}
+- \frac{C \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 }{\sigma_\varepsilon^6}.
+\]
+
+Compute second derivative:
+\[
+H_{\sigma_\varepsilon^2,\sigma_\varepsilon^2} =
+\frac{n}{2}\left[
+-\frac{1}{C^2}\left(\frac{\partial C}{\partial \sigma_\varepsilon^2}\right)^2
++ \frac{1}{C}\frac{\partial^2 C}{\partial (\sigma_\varepsilon^2)^2}
+\right]
++ \frac{nJ}{2\sigma_\varepsilon^4}
+- \frac{\sum a_{ij}^2}{\sigma_\varepsilon^6}
++ \frac{\partial}{\partial \sigma_\varepsilon^2}\left(
+\frac{1}{2\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \frac{\partial C}{\partial \sigma_\varepsilon^2}
+\right)
++ \frac{\partial}{\partial \sigma_\varepsilon^2}\left(
+-\frac{C \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 }{\sigma_\varepsilon^6}
+\right).
+\]
+
+Expand the last two terms:
+
+\[
+\frac{\partial}{\partial \sigma_\varepsilon^2}\left(
+\frac{1}{2\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \frac{\partial C}{\partial \sigma_\varepsilon^2}
+\right)
+=  \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \left[
+-\frac{1}{\sigma_\varepsilon^6}\frac{\partial C}{\partial \sigma_\varepsilon^2}
++ \frac{1}{2\sigma_\varepsilon^4}\frac{\partial^2 C}{\partial (\sigma_\varepsilon^2)^2}
+\right],
+\]
+
+\[
+\frac{\partial}{\partial \sigma_\varepsilon^2}\left(
+-\frac{C \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 }{\sigma_\varepsilon^6}
+\right)
+=  \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \left[
+-\frac{\partial C}{\partial \sigma_\varepsilon^2}\frac{1}{\sigma_\varepsilon^6}
++ \frac{3C}{\sigma_\varepsilon^8}
+\right].
+\]
+
+Combine everything:
+
+\[
+\boxed{
+H_{\sigma_\varepsilon^2,\sigma_\varepsilon^2} =
+\frac{n}{2}\left[
+-\frac{1}{C^2}\left(\frac{\partial C}{\partial \sigma_\varepsilon^2}\right)^2
++ \frac{1}{C}\frac{\partial^2 C}{\partial (\sigma_\varepsilon^2)^2}
+\right]
++ \frac{nJ}{2\sigma_\varepsilon^4}
+- \frac{\sum a_{ij}^2}{\sigma_\varepsilon^6}
++  \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \left[
+-\frac{2}{\sigma_\varepsilon^6}\frac{\partial C}{\partial \sigma_\varepsilon^2}
++ \frac{1}{2\sigma_\varepsilon^4}\frac{\partial^2 C}{\partial (\sigma_\varepsilon^2)^2}
++ \frac{3C}{\sigma_\varepsilon^8}
+\right].
+}
+\]
+
+#### 5. \(\beta_0,\beta_1\):
+\[
+H_{\beta_0,\beta_1} = -\frac{\sum x_{ij}}{\sigma_\varepsilon^2} + \frac{C J (\sum x_{ij})}{\sigma_\varepsilon^4}.
+\]
+
+#### 6. \(\beta_0,\sigma_u^2\):
+\[
+H_{\beta_0,\sigma_u^2} = -\frac{J (\sum a_{ij})}{\sigma_\varepsilon^4}\frac{\partial C}{\partial \sigma_u^2}
+\]
+
+#### 7. \(\beta_0,\sigma_\varepsilon^2\):
+\[
+H_{\beta_0,\sigma_\varepsilon^2} =
+ \sum a_{ij} \left[ -\frac{1}{\sigma_\varepsilon^4} - J \left( \frac{\partial C}{\partial \sigma_\varepsilon^2}\cdot\frac{1}{\sigma_\varepsilon^4} - \frac{2C}{\sigma_\varepsilon^6} \right) \right].
+\]
+
+Split:
+\[
+H_{\beta_0,\sigma_\varepsilon^2} =
+-\frac{\sum a_{ij}}{\sigma_\varepsilon^4}
+- J (\sum a_{ij})\left[
+\frac{\partial C}{\partial \sigma_\varepsilon^2}\cdot\frac{1}{\sigma_\varepsilon^4}
+- \frac{2C}{\sigma_\varepsilon^6}
+\right].
+\]
+
+
+#### 8. \(\beta_1,\sigma_u^2\):
+\[
+H_{\beta_1,\sigma_u^2} = -\frac{ \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right) \left( \sum_{j=1}^J x_{ij} \right) }{\sigma_\varepsilon^4}\frac{\partial C}{\partial \sigma_u^2}
+\]
+
+#### 9. \(\beta_1,\sigma_\varepsilon^2\):
+\[
+H_{\beta_1,\sigma_\varepsilon^2} =
+-\frac{\sum a_{ij}x_{ij}}{\sigma_\varepsilon^4}
+- J (\sum a_{ij}x_{ij})\left[
+\frac{\partial C}{\partial \sigma_\varepsilon^2}\cdot\frac{1}{\sigma_\varepsilon^4}
+- \frac{2C}{\sigma_\varepsilon^6}
+\right].
+\]
+
+
+#### 10. \(\sigma_u^2,\sigma_\varepsilon^2\):
+\[
+H_{\sigma_u^2,\sigma_\varepsilon^2} =
+\frac{n}{2}\left[-\frac{1}{C^2}\frac{\partial C}{\partial \sigma_u^2}\frac{\partial C}{\partial \sigma_\varepsilon^2} + \frac{1}{C}\frac{\partial^2 C}{\partial \sigma_u^2 \partial \sigma_\varepsilon^2}\right] +
+\frac{1}{2\sigma_\varepsilon^4} \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 \frac{\partial^2 C}{\partial \sigma_u^2 \partial \sigma_\varepsilon^2} - \frac{ \sum_{i=1}^n \left( \sum_{j=1}^J a_{ij} \right)^2 }{\sigma_\varepsilon^6}\frac{\partial C}{\partial \sigma_u^2}.
+\]
+
+## Newton Raphson iteration
+At each iteration, we update to the next parameter estimate by:
+\begin{equation}
+\theta^{(t+1)} = \theta^{(t)} - [\nabla^2 l(\theta^{(t)})]^{-1}\nabla l(\theta^{(t)})
+\end{equation}
+where $\nabla l$ and $\nabla^2 l$ refers to the gradient and Hessian of the observed log-likelihood respectively.
+
+## Functions for Gradient and Hessian
+
+```{r functions}
+compute_gradient <- function(params, x, y, n, J) {
+  beta0 <- params[1]
+  beta1 <- params[2]
+  sigma_u2 <- params[3]
+  sigma_e2 <- params[4]
+  
+  a <- y - beta0 - beta1 * x
+  sum_a <- sum(a)
+  sum_a2 <- sum(a^2)
+  sum_x <- sum(x)
+  sum_x2 <- sum(x^2)
+  A <- rowSums(a)
+  S <- sum(A^2)
+  X <- rowSums(x)
+  sum_A_X <- sum(A * X)
+  sum_ax <- sum(a * x)
+  
+  C <- (sigma_u2 * sigma_e2) / (J * sigma_u2 + sigma_e2)
+  dC_du <- (sigma_e2^2) / (J * sigma_u2 + sigma_e2)^2
+  dC_de <- (J * sigma_u2^2) / (J * sigma_u2 + sigma_e2)^2
+  
+  grad <- numeric(4)
+  grad[1] <- (sum_a / sigma_e2) - (C * J * sum_a) / sigma_e2^2
+  grad[2] <- (sum_ax / sigma_e2) - (C * sum_A_X) / sigma_e2^2
+  grad[3] <- (n / (2 * C)) * dC_du - n / (2 * sigma_u2) + (S / (2 * sigma_e2^2)) * dC_du
+  grad[4] <- (n / (2 * C)) * dC_de - (n * J) / (2 * sigma_e2) + sum_a2 / (2 * sigma_e2^2) +
+             (S / (2 * sigma_e2^2)) * dC_de - (C * S) / sigma_e2^3
+  
+  return(grad)
+}
+
+compute_hessian <- function(params, x, y, n, J) {
+  beta0 <- params[1]
+  beta1 <- params[2]
+  sigma_u2 <- params[3]
+  sigma_e2 <- params[4]
+  
+  a <- y - beta0 - beta1 * x
+  sum_a <- sum(a)
+  sum_a2 <- sum(a^2)
+  sum_x <- sum(x)
+  sum_x2 <- sum(x^2)
+  A <- rowSums(a)
+  S <- sum(A^2)
+  X <- rowSums(x)
+  sum_A_X <- sum(A * X)
+  sum_X2 <- sum(X^2)
+  sum_ax <- sum(a * x)
+  
+  C <- (sigma_u2 * sigma_e2) / (J * sigma_u2 + sigma_e2)
+  dC_du <- (sigma_e2^2) / (J * sigma_u2 + sigma_e2)^2
+  dC_de <- (J * sigma_u2^2) / (J * sigma_u2 + sigma_e2)^2
+  d2C_du2 <- (-2 * J * sigma_e2^2) / (J * sigma_u2 + sigma_e2)^3
+  d2C_de2 <- (-2 * J^2 * sigma_u2^2) / (J * sigma_u2 + sigma_e2)^3
+  d2C_du_de <- (2 * J * sigma_u2 * sigma_e2) / (J * sigma_u2 + sigma_e2)^3
+  
+  H <- matrix(0, 4, 4)
+  
+  H[1,1] <- -n * J / sigma_e2 + (C * n * J^2) / sigma_e2^2
+  H[2,2] <- -sum_x2 / sigma_e2 + (C * sum_X2) / sigma_e2^2
+  H[1,2] <- -sum_x / sigma_e2 + (C * J * sum_x) / sigma_e2^2
+  H[2,1] <- H[1,2]
+  
+  H[1,4] <- -sum_a / sigma_e2^2 - (J * sum_a) * (dC_de / sigma_e2^2 - 2 * C / sigma_e2^3)
+  H[4,1] <- H[1,4]
+  
+  H[1,3] <- -(J * sum_a) * (dC_du / sigma_e2^2)
+  H[3,1] <- H[1,3]
+  
+  H[2,4] <- -sum_ax / sigma_e2^2 - sum_A_X * (dC_de / sigma_e2^2 - 2 * C / sigma_e2^3)
+  H[4,2] <- H[2,4]
+  
+  H[2,3] <- -sum_A_X * (dC_du / sigma_e2^2)
+  H[3,2] <- H[2,3]
+  
+  H[3,3] <- n / (2 * sigma_u2^2) +
+             (n / 2) * (- (dC_du^2) / C^2 + d2C_du2 / C) +
+             (S / (2 * sigma_e2^2)) * d2C_du2
+  
+  H[4,4] <- (n / 2) * (- (dC_de^2) / C^2 + d2C_de2 / C) +
+              n*J/(2*sigma_e2^2) -
+             (sum_a2) / sigma_e2^3 +
+             S * (-2 * dC_de / sigma_e2^3 + d2C_de2 / (2 * sigma_e2^2) + 3*C /sigma_e2^4)
+  
+  H[3,4] <- (n / 2) * (- (dC_du * dC_de) / C^2 + d2C_du_de / C) +
+             (S / (2 * sigma_e2^2)) * d2C_du_de -
+            S/sigma_e2^3 * dC_du
+  H[4,3] <- H[3,4]
+  
+  return(H)
+}
+```
+
+## Newton-Raphson Implementation
+
+```{r nr_algorithm}
+# Reinitialize parameters
+beta0 <- beta0_init
+beta1 <- beta1_init
+sigma_u2 <- sigma_u2_init
+sigma_e2 <- sigma_e2_init
+
+params <- c(beta0, beta1, sigma_u2, sigma_e2)
+loglik_trace <- numeric(max_iter)
+converged_iter_nr <- max_iter
+converged_nr <- FALSE
+
+min_var <- 1e-6  # Small positive value to clip variances
+
+clip_count <- 0  # Track how many times clipping occurs
+
+for (iter in 1:max_iter) {
+  
+  # Compute observed-data log-likelihood for convergence check
+  loglik_trace[iter] <- ologlik(params)
+  
+  # Check convergence
+  #if (max(abs(delta)) < tol) {
+  if (!converged_nr && iter > 1 && abs(loglik_trace[iter] - loglik_trace[iter - 1]) < tol) {
+    converged_nr <- TRUE
+    converged_iter_nr <- iter
+    #break
+  }
+  
+  # Compute gradient and Hessian using functions
+  grad <- compute_gradient(params, x, y, n, J)
+  H <- compute_hessian(params, x, y, n, J)
+  
+  # Newton-Raphson update
+  delta <- solve(H, grad)
+  params_new <- params - delta
+  
+  # Constrain variances >= min_var
+  if (params_new[3] < min_var) {
+    params_new[3] <- min_var
+    clip_count <- clip_count + 1
+  }
+  if (params_new[4] < min_var) {
+    params_new[4] <- min_var
+    clip_count <- clip_count + 1
+  }
+  
+  # Update parameters
+  params <- params_new
+  beta0 <- params[1]; beta1 <- params[2]; sigma_u2 <- params[3]; sigma_e2 <- params[4]
+  
+}
+
+# Plot log-likelihood trace
+plot(1:max_iter, loglik_trace[1:max_iter], type = 'o', col = 'blue', lwd = 2,
+     xlab = 'Iteration', ylab = 'Observed Data Log-Likelihood',
+     main = 'Newton-Raphson Convergence')
+grid()
+plot((converged_iter_nr-2):max_iter, loglik_trace[(converged_iter_nr-2):max_iter], type = 'o', col = 'blue', lwd = 2,
+     xlab = 'Iteration', ylab = 'Observed Data Log-Likelihood',
+     main = 'Newton-Raphson Convergence (Closer look)')
+grid()
+
+names(params) <- c('beta0', 'beta1', 'sigma_u2', 'sigma_e2')
+{
+cat('NR Estimated beta0:', params[1], '\n')
+cat('NR Estimated beta1:', params[2], '\n')
+cat('NR Estimated sigma_u^2:', params[3], '\n')
+cat('NR Estimated sigma_e^2:', params[4], '\n')
+if (converged_nr) {
+  cat("Newton-Raphson algorithm converged at iteration:", converged_iter_nr, " at tolerance 1e-6\n")
+  cat('NR Estimated Maximum Observed-data Log-likelihood: ', loglik_trace[converged_iter_nr])
+} else {
+  cat("Newton-Raphson algorithm did not converge.")
+}
+}
+```
+
+As expected, the Newton-Raphson algorithm converges to the same MLE found by the EM algorithm. Their convergence rate are also comparable.
+
+# 1e Gradient Ascent
+For each iteration we update by:
+\begin{equation}
+\theta^{(t+1)} = \theta^{(t)} + \eta\nabla l(\theta^{(t)})
+\end{equation}
+where $\eta$ is the learning rate. Since the learning rates 0.1 and 0.5 does not converge to a reasonable MLE, we attempted smaller learning rate 0.01 and 0.001 also
+```{r gradient-ascent-lr}
+# Gradient Ascent with Log-Likelihood Plot and Variable Learning Rates
+
+# Convergence check parameter for gradient ascent
+max_iter_ga <- 1e3
+max_iter <- max_iter_ga
+
+# Function to run gradient ascent for a given learning rate
+run_gradient_ascent <- function(learning_rate, params_init, max_iter = max_iter_ga, tol = 1e-6) {
+  params <- params_init
+  beta0 <- params[1]
+  beta1 <- params[2]
+  sigma_u2 <- params[3]
+  sigma_e2 <- params[4]
+  
+  loglik_trace <- numeric(max_iter)
+  converged_ga <- FALSE
+  converged_iter_ga <- max_iter
+  
+  for (iter in 1:max_iter) {
+    # Compute observed-data log-likelihood for convergence check
+    loglik_trace[iter] <- ologlik(params)
+    
+    # Check convergence
+    if (!converged_ga && iter > 1 && abs(loglik_trace[iter] - loglik_trace[iter - 1]) < tol) {
+      converged_ga <- TRUE
+      converged_iter_ga <- iter
+      #break  # Uncomment to stop early; keep commented to run full iterations for plotting
+    }
+    
+    # Compute gradient using function
+    grad <- compute_gradient(params, x, y, n, J)
+    
+    # Gradient ascent update
+    params_new <- params + learning_rate * grad
+    
+    # Constrain variances >= min_var
+    if (params_new[3] < min_var) {
+      params_new[3] <- min_var
+      clip_count <- clip_count + 1
+    }
+    if (params_new[4] < min_var) {
+      params_new[4] <- min_var
+      clip_count <- clip_count + 1
+    }
+    
+    # Update parameters
+    params <- params_new
+    beta0 <- params[1]; beta1 <- params[2]; sigma_u2 <- params[3]; sigma_e2 <- params[4]
+  }
+  
+  list(
+    params = params,
+    loglik_trace = loglik_trace,
+    converged_iter = converged_iter_ga,
+    converged = converged_ga
+  )
+}
+
+# Reinitialize parameters from init
+params_init <- c(beta0_init, beta1_init, sigma_u2_init, sigma_e2_init)
+
+# Define a vector of learning rates to try
+learning_rates <- c(0.001, 0.01, 0.1, 0.5)
+
+# Run GA for each learning rate and store results
+results_list <- list()
+for (lr in learning_rates) {
+  cat("\nRunning Gradient Ascent with learning rate:", lr, "\n")
+  results_list[[as.character(lr)]] <- run_gradient_ascent(lr, params_init)
+}
+
+# Run separate plots for each learning rate
+for (i in seq_along(learning_rates)) {
+  lr <- learning_rates[i]
+  res <- results_list[[as.character(lr)]]
+  plot(1:max_iter, res$loglik_trace, type = 'o', col = 'blue', lwd = 2,
+       xlab = 'Iteration', ylab = 'Observed Data Log-Likelihood',
+       main = paste('Gradient Ascent Convergence for LR =', lr))
+  if (res$converged) {
+    cat("Gradient Ascent with LR=", lr, " converged at iteration:", res$converged_iter, " at tolerance 1e-6\n")
+  } else {
+    cat("Gradient Ascent with LR=", lr, " did not converge within", max_iter, "iterations.\n")
+  }
+  grid()
+}
+
+# Print final estimates for each LR
+for (i in seq_along(learning_rates)) {
+  lr <- learning_rates[i]
+  res <- results_list[[as.character(lr)]]
+  cat("\nFor LR =", lr, ":\n")
+  names(res$params) <- c('beta0', 'beta1', 'sigma_u2', 'sigma_e2')
+  cat('GA Estimated beta0:', res$params[1], '\n')
+  cat('GA Estimated beta1:', res$params[2], '\n')
+  cat('GA Estimated sigma_u^2:', res$params[3], '\n')
+  cat('GA Estimated sigma_e^2:', res$params[4], '\n')
+  cat('GA Estimated Maximum Observed-data Log-likelihood: ', res$loglik_trace[res$converged_iter])
+}
+```
+
+As shown in the results, at learning rate 0.1 and 0.5, the gradient ascent algorithm does not converge to a reasonable MLE, convergence is reported likely due to local optimum or numerical instability. For gradient ascent algorithm, only the first moment is used. If the learning rate is too large, the algorithm may jump over the optimal solution easily.
+
+With smaller learning rates 0.01 or 0.001, the gradient ascent algorithm converges to the same MLE found by Newton-Raphson algorithm and EM algorithm. However, the iteration required by the gradient ascent algorithm is 37, larger than that of 13 as required by the Newton-Raphson algorithm. This is expected since the Newton-Raphson algorithm utilizes second-order information. As long as the optimal solution has appropriately large curvature, then the Newton-Raphson algorithm would be appropriate to avoid zig-zag paths of the gradient ascent algorithm.
+
+# 2a
+The model is given by
+\begin{align}
+u_i &\sim \text{Cat}(\mathbf{w}) \\
+y_i &\mid u_i \sim \mathcal{N}(\mu_{u_i}, \sigma_{u_i}), 
+\end{align}
+where $\{u_i\}_i$ are independent and $\{y_i\}_i$ are independent.
+Let $\theta=(\mathbf{w},\mathbf{\mu},\mathbf{\sigma})$.
+\begin{align}
+f(y_i, u_i \mid \mathbf{\theta}) &= f(y_i \mid u_i, \mathbf{\theta})f(u_i \mid \mathbf{\theta}) \\
+&= (2 \pi)^{-\frac{1}{2}} \sigma_{u_i}^{-1} \exp({-\frac{(y_i-\mu_{u_i})^2}{2\sigma_{u_i}^2}}) \cdot w_{u_i}
+\end{align}
+Thus, the complete data likelihood, $L^C(\theta \mid \mathbf{y}, \mathbf{u})$ is given by:
+\begin{align}
+L^c(\mathbf{\theta} \mid \mathbf{y}, \mathbf{u}) &= \prod_{i=1}^n f(y_i, \mu{u_i} \mid \mathbf{\theta}) \\
+&= (2\pi)^{-\frac{n}{2}} \prod_{i=1}^n \sigma_{u_i}^{-1} \exp({-\frac{(y_i-\mu_{u_i})^2}{2\sigma_{u_i}^2}}) \cdot w_{u_i}
+\end{align}
+
+# 2b
+The marginal distribution of $y_i$ is given by:
+\begin{align}
+f(y_i \mid \mathbf{\theta}) &= \sum_{u_i=1}^k f(y_i, u_i \mid \mathbf{\theta}) \\
+&= \sum_{j=1}^k (2\pi)^{-\frac{1}{2}} \sigma_{j}^{-1} \exp({-\frac{(y_i-\mu_j)^2}{2\sigma_{j}^2}}) \cdot w_{j},
+\end{align}
+consistent with the pdf given in the question.
+
+# 2c
+We employ PAM for clustering with different $k$. The best $k$ is estimated through visual inspection of the histogram and by comparing silhoutte width.
+```{r 2c}
+library(cluster)
+
+# Step 1: Read the CSV file
+data <- read.csv("q2.csv")
+y <- data$y
+y_matrix <- as.matrix(y)  # Convert to matrix for clustering functions (1D as single column)
+
+# Step 2: Visualize the raw data with specified binwidth
+# Use fixed binwidth
+binwidth <- 0.5
+# Generate breaks sequence
+breaks_seq <- seq(min(y), max(y) + binwidth, by = binwidth)  # Add binwidth to max to include all data
+# Plot histogram with specified breaks
+hist(y, breaks = breaks_seq, main="Histogram of Data", xlab="y", prob=TRUE, col="lightblue")
+
+# Step 3: Determine the optimal number of clusters k using silhouette width
+# We'll try k from 2 to 10; skip k=1 as trivial
+max_k <- 10
+sil_widths <- numeric(max_k - 1)
+for (k in 2:max_k) {
+  # Use PAM (Partitioning Around Medoids) for clustering
+  pam_fit <- pam(y_matrix, k = k)
+  sil <- silhouette(pam_fit$clustering, dist(y_matrix))
+  sil_widths[k-1] <- summary(sil)$avg.width
+}
+
+# Find the k with the maximum average silhouette width
+best_k <- which.max(sil_widths) + 1  # +1 since we started from k=2
+cat("Estimated number of clusters k (based on max silhouette width):", best_k, "\n")
+
+# Plot silhouette widths for model selection
+plot(2:max_k, sil_widths, type="b", xlab="Number of Clusters k", ylab="Average Silhouette Width",
+     main="Silhouette Width for Cluster Selection")
+
+```
+
+From the histogram, there appears two peaks. The PAM fit shows largest silhoutte width at $k=2$ also. We might estimate $k=2$. We then estimate $\mathbf{\mu}$ and $\mathbf{\sigma^2}$ by sample means and variance of each cluster. Mixing proportion $\mathbf{w}$ is also estimated by the proportion of data points in each cluster.
+
+```{r 2c2}
+# Step 4: Perform clustering with the best k
+pam_best <- pam(y_matrix, k = best_k)
+
+# Step 5: Visualize the clustering using clusplot
+# For 1D data, clusplot will plot points on a line with cluster indicators
+# Modified to use labels=4 to label clusters (ellipses) but not the individual data points with numbers
+clusplot(y_matrix, pam_best$clustering, main="Cluster Plot of Data", shade=TRUE, color=TRUE,
+         labels=4, plotchar=TRUE, span=TRUE, xlab="y (Data Values)", 
+         sub=sprintf("k = %d (PAM Clustering)", best_k))
+
+# Step 6: Estimate normal density parameters N(μ_j, σ²_j) for each cluster
+# Compute mean and variance for each cluster
+clusters <- pam_best$clustering
+means <- tapply(y, clusters, mean)
+variances <- tapply(y, clusters, var)
+
+{
+cat("Estimated parameters:\n")
+for (j in 1:best_k) {
+  cat(sprintf("Component %d: N(μ=%.4f, σ²=%.4f)\n", j, means[j], variances[j]))
+}
+
+# Estimate mixing proportions w_j (proportions of data in each cluster)
+proportions <- table(clusters) / length(y)
+cat("Estimated mixing proportions w:\n", proportions, "\n")
+}
+```
+# 2d, e
+## E-step
+The posterior conditional distribution is given by:
+\begin{align}
+h(u_i \mid y_i, \mathbf{\theta}) &= \frac{f(y_i, u_i \mid \mathbf{\theta})}{f(y_i \mid \mathbf{\theta})} \\
+&= \frac{(2 \pi)^{-\frac{1}{2}} \sigma_{u_i}^{-1} \exp({-\frac{(y_i-\mu_{u_i})^2}{2\sigma_{u_i}^2}}) \cdot w_{u_i}}{\sum_{j=1}^k (2\pi)^{-\frac{1}{2}} \sigma_{j}^{-1} \exp({-\frac{(y_i-\mu_j)^2}{2\sigma_{j}^2}}) \cdot w_{j}} \\
+&= \frac{\sigma_{u_i}^{-1} \exp({-\frac{(y_i-\mu_{u_i})^2}{2\sigma_{u_i}^2}}) \cdot w_{u_i}}{\sum_{j=1}^k \sigma_{j}^{-1} \exp({-\frac{(y_i-\mu_j)^2}{2\sigma_{j}^2}}) \cdot w_{j}} \\
+&= \frac{\exp({-\frac{(y_i-\mu_{u_i})^2}{2}}) \cdot w_{u_i}}{\exp({-\frac{(y_i-\mu_1)^2}{2}}) \cdot w_1 +  \exp({-\frac{(y_i-\mu_2)^2}{2}}) \cdot (1- w_1)}, \\
+\end{align}
+noting  $k=2$ and $\sigma_1^2=\sigma_2^2=1$.
+Denote
+\begin{align}
+p_{1,i} &= h(u_i=1\mid y_i, \mathbf{\theta}) = \frac{ \exp({-\frac{(y_i-\mu_1)^2}{2}}) \cdot w_1}{ \exp({-\frac{(y_i-\mu_1)^2}{2}}) \cdot w_1 + \exp({-\frac{(y_i-\mu_2)^2}{2}}) \cdot (1-w_1)} \\
+p_{2,i} &= h(u_i=2\mid y_i, \mathbf{\theta}) = \frac{ \exp({-\frac{(y_i-\mu_2)^2}{2}}) \cdot w_2}{\exp({-\frac{(y_i-\mu_1)^2}{2}}) \cdot w_1 + \exp({-\frac{(y_i-\mu_2)^2}{2}}) \cdot w_2} = 1 - p_{1,i}
+\end{align}
+The Q-function is given by:
+\begin{align}
+Q(\mathbf{\theta} \mid \mathbf{y}, \tilde{\mathbf{\theta}}) &= \mathbb{E}_{\mathbf{u} \mid \mathbf{y}, \tilde{\mathbf{\theta}}}\log [L^C(\mathbf{\theta} \mid \mathbf{y}, \mathbf{u})] \\
+&= \mathbb{E}_{\mathbf{u} \mid \mathbf{y}, \tilde{\mathbf{\theta}}}\log [(2\pi)^{-\frac{n}{2}} \prod_{i=1}^n \sigma_{u_i}^{-1} \exp({-\frac{(y_i-\mu_{u_i})^2}{2\sigma_{u_i}^2}}) \cdot w_{u_i}] \\
+&= -\frac{n}{2}\log(2\pi) + \sum_{i=1}^n \mathbb{E}_{u_i \mid y_i, \tilde{\mathbf{\theta}}} \log [ \sigma_{u_i}^{-1} \exp({-\frac{(y_i-\mu_{u_i})^2}{2\sigma_{u_i}^2}}) \cdot w_{u_i}]
+\end{align}
+Now, noting $k=2$ and $\sigma_1^2=\sigma_2^2=1$,
+\begin{align}
+& \mathbb{E}_{u_i \mid y_i, \tilde{\mathbf{\theta}}} \log [ \sigma_{u_i}^{-1} \exp({-\frac{(y_i-\mu_{u_i})^2}{2\sigma_{u_i}^2}}) \cdot w_{u_i}] \\
+&= \mathbb{E}_{u_i \mid y_i, \tilde{\mathbf{\theta}}} [\log w_{u_i} -\frac{(y_i-\mu_{u_i})^2}{2})] \\
+&= [\tilde{p}_{1,i} \quad \tilde{p}_{2,i}] [\log w_1 -\frac{(y_i-\mu_1)^2}{2} \quad \log (1-w_1) -\frac{(y_i-\mu_2)^2}{2}]^T,
+\end{align}
+where 
+\begin{align}
+\tilde{p}_{1,i} &= h(u_i=1\mid y_i, \tilde{\mathbf{\theta}}) = \frac{ \exp(-\frac{(y_i-\tilde{\mu}_1)^2}{2}) \cdot \tilde{w}_1}{ \exp(-\frac{(y_i-\tilde{\mu}_1)^2}{2}) \cdot \tilde{w}_1 + \exp(-\frac{(y_i-\tilde{\mu}_2)^2}{2}) \cdot \tilde{w}_2} \\
+\tilde{p}_{2,i} &= h(u_i=2\mid y_i, \tilde{\mathbf{\theta}}) = \frac{ \exp(-\frac{(y_i-\tilde{\mu}_2)^2}{2}) \cdot \tilde{w}_2}{ \exp(-\frac{(y_i-\tilde{\mu}_1)^2}{2}) \cdot \tilde{w}_1 + \exp(-\frac{(y_i-\tilde{\mu}_2)^2}{2}) \cdot (1-\tilde{w}_1)} \\
+\end{align}
+Thus, 
+\begin{align}
+Q(\mathbf{\mu}, \mathbf{w} \mid \mathbf{y}, \tilde{\mathbf{\mu}}, \tilde{\mathbf{w}}) \\
+&= -\frac{n}{2}\log(2\pi) + \sum_{i=1}^n [\tilde{p}_{1,i} \quad \tilde{p}_{2,i}] [\log w_1 -\frac{(y_i-\mu_1)^2}{2} \quad \log w_2 -\frac{(y_i-\mu_2)^2}{2}]^T \\
+&= -\frac{n}{2}\log(2\pi) + (\sum_{i=1}^n \tilde{p}_{1,i})\log w_1 + (\sum_{i=1}^n \tilde{p}_{2,i})\log (1-w_1) - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{1,i} (\mu_1 - y_i)^2 - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{2,i} (\mu_2 - y_i)^2
+\end{align}
+
+For the case where $w_1=w_2=\frac{1}{2}$ is known, the above simplify as:
+\begin{align}
+Q(\mathbf{\mu} \mid \mathbf{y}, \tilde{\mathbf{\mu}}) \\
+&= -\frac{n}{2}\log(2\pi) + (\sum_{i=1}^n \tilde{p}_{1,i})\log w_1 + (\sum_{i=1}^n \tilde{p}_{2,i})\log (1-w_1) - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{1,i} (\mu_1 - y_i)^2 - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{2,i} (\mu_2 - y_i)^2 \\
+&= -\frac{n}{2}\log(2\pi) + (\sum_{i=1}^n \tilde{p}_{1,i})\log \frac{1}{2} + (\sum_{i=1}^n \tilde{p}_{2,i})\log \frac{1}{2} - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{1,i} (\mu_1 - y_i)^2 - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{2,i} (\mu_2 - y_i)^2 \\
+&= -\frac{n}{2}\log(2\pi) + (\sum_{i=1}^n (\tilde{p}_{1,i} + \tilde{p}_{2,i})\log \frac{1}{2}) - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{1,i} (\mu_1 - y_i)^2 - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{2,i} (\mu_2 - y_i)^2 \\
+&= -\frac{n}{2}\log(2\pi) + (\sum_{i=1}^n \log \frac{1}{2}) - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{1,i} (\mu_1 - y_i)^2 - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{2,i} (\mu_2 - y_i)^2 \\
+&= -\frac{n}{2}\log(2\pi) - n\log 2 - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{1,i} (\mu_1 - y_i)^2 - \frac{1}{2} \sum_{i=1}^n \tilde{p}_{2,i} (\mu_2 - y_i)^2
+\end{align}
+with 
+\begin{align}
+\tilde{p}_{1,i} &= h(u_i=1\mid y_i, \tilde{\mathbf{\theta}}) = \frac{ \exp(-\frac{(y_i-\tilde{\mu}_1)^2}{2})}{ \exp(-\frac{(y_i-\tilde{\mu}_1)^2}{2}) + \exp(-\frac{(y_i-\tilde{\mu}_2)^2}{2})} \\
+\tilde{p}_{2,i} &= h(u_i=2\mid y_i, \tilde{\mathbf{\theta}}) = \frac{ \exp(-\frac{(y_i-\tilde{\mu}_2)^2}{2})}{ \exp(-\frac{(y_i-\tilde{\mu}_1)^2}{2}) + \exp(-\frac{(y_i-\tilde{\mu}_2)^2}{2})} \\
+\end{align}
+
+## M-step
+Consider the simplified case (d) first. To maximize $Q(\mathbf{\theta} \mid \mathbf{y}, \tilde{\mathbf{\theta}})$, take derivative and set to zero:
+\begin{align}
+\frac{\partial Q(\mathbf{\theta} \mid \mathbf{y}, \tilde{\mathbf{\theta}})}{\partial \mu_1} &=  -\sum_{i=1}^n \tilde{p}_{1,i} (\mu_1 - y_i) = 0 \\
+\mu_1 &= \frac{\sum_{i=1}^n \tilde{p}_{1,i} y_i}{\sum_{i=1}^n \tilde{p}_{1,i}}
+\end{align}
+Similarly,
+\begin{align}
+\mu_2 = \frac{\sum_{i=1}^n \tilde{p}_{2,i} y_i}{\sum_{i=1}^n \tilde{p}_{2,i}}
+\end{align}
+
+Then consider the complicated case (e). For $\mathbf{\mu}$, aking derivatives and setting to zero yields the same equations as above, just that the corresponding E-step equations for $\tilde{\mathbf{p}}$ has to be used, which involve terms of $\tilde{w}$. For $\mathbf{w}$,
+\begin{align}
+\frac{\partial Q(\mathbf{\theta} \mid \mathbf{y}, \tilde{\mathbf{\theta}})}{\partial w_1} = 
+\frac{(\sum_{i=1}^n \tilde{p}_{1,i})}{w_1} - \frac{(\sum_{i=1}^n \tilde{p}_{2,i})}{(1-w_1)} = 0 \\
+w_1 = \frac{\sum_{i=1}^n \tilde{p}_{1,i}}{\sum_{i=1}^n (\tilde{p}_{1,i}+\tilde{p}_{2,i})} = \frac{1}{n}\sum_{i=1}^n \tilde{p}_{1,i}
+\end{align}
+and
+\begin{align}
+w_2 = 1 - w_1 = \frac{1}{n}\sum_{i=1}^n \tilde{p}_{2,i}
+\end{align}
+```{r 2d}
+n <- length(y)
+
+# Initialize parameters
+# Use k-means for initial guesses of mu1 and mu2
+init_kmeans <- kmeans(y, centers = 2)
+mu1 <- init_kmeans$centers[1]
+mu2 <- init_kmeans$centers[2]
+# Fixed parameters
+sigma1 <- 1
+sigma2 <- 1
+w1 <- 0.5
+w2 <- 0.5
+
+# Convergence criteria
+tol <- 1e-6
+max_iter <- 100
+iter <- 0
+converged <- FALSE
+
+# EM algorithm loop
+while (!converged && iter < max_iter) {
+  iter <- iter + 1
+  
+  # E-step: Compute responsibilities \tilde{p}_{1,i} and \tilde{p}_{2,i}
+  # Note: Since w1 = w2 and sigma1 = sigma2, they cancel out in the ratio
+  exp_term1 <- exp(- (y - mu1)^2 / 2)
+  exp_term2 <- exp(- (y - mu2)^2 / 2)
+  p1 <- exp_term1 / (exp_term1 + exp_term2)
+  p2 <- 1 - p1  # or exp_term2 / (exp_term1 + exp_term2)
+  
+  # M-step: Update mu1 and mu2
+  sum_p1 <- sum(p1)
+  sum_p2 <- sum(p2)
+  new_mu1 <- sum(p1 * y) / sum_p1
+  new_mu2 <- sum(p2 * y) / sum_p2
+  # No updates for w or sigma since fixed
+  
+  # Check convergence
+  delta <- max(abs(new_mu1 - mu1), abs(new_mu2 - mu2))
+  if (delta < tol) {
+    converged <- TRUE
+  }
+  
+  # Update parameters
+  mu1 <- new_mu1
+  mu2 <- new_mu2
+}
+
+# Output results
+{
+if (converged) {
+  cat("EM converged after", iter, "iterations.\n")
+} else {
+  cat("EM reached maximum iterations (", max_iter, ") without convergence.\n")
+}
+cat("Estimated mu_1:", mu1, "\n")
+cat("Estimated mu_1:", mu2, "\n")
+}
+
+# Visualize the fitted densities over histogram
+hist(y, prob = TRUE, breaks = breaks_seq, col = "lightblue", main = "Data Histogram with Fitted GMM Densities", xlab = "y")
+curve(w1 * dnorm(x, mean = mu1, sd = sigma1) + w2 * dnorm(x, mean = mu2, sd = sigma2), add = TRUE, col = "red", lwd = 2)
+curve(w1 * dnorm(x, mean = mu1, sd = sigma1), add = TRUE, col = "blue", lty = 2, lwd=2)
+curve(w2 * dnorm(x, mean = mu2, sd = sigma2), add = TRUE, col = "green", lty = 2, lwd=2)
+legend("topright", legend = c("Fitted GMM", "Component 1", "Component 2"), col = c("red", "blue", "green"), lty = c(1, 2, 2))
+```
+
+```{r 2e}
+# Initialize parameters
+# Using previous means for initial guesses of mu1 and mu2
+# Initialize weights
+w1 <- 0.5
+w2 <- 0.5
+# Fixed parameters
+sigma1 <- 1
+sigma2 <- 1
+
+# Convergence criteria
+tol <- 1e-6
+max_iter <- 100
+iter <- 0
+converged <- FALSE
+
+# EM algorithm loop
+while (!converged && iter < max_iter) {
+  iter <- iter + 1
+  
+  # E-step: Compute responsibilities \tilde{p}_{1,i} and \tilde{p}_{2,i}
+  exp_term1 <- exp(- (y - mu1)^2 / 2)
+  exp_term2 <- exp(- (y - mu2)^2 / 2)
+  denom <- exp_term1 * w1 + exp_term2 * w2
+  p1 <- (exp_term1 * w1) / denom
+  p2 <- 1 - p1 # or (exp_term2 * w2) / denom
+  
+  # M-step: Update mu1, mu2, w1, w2
+  sum_p1 <- sum(p1)
+  sum_p2 <- sum(p2)
+  new_mu1 <- sum(p1 * y) / sum_p1
+  new_mu2 <- sum(p2 * y) / sum_p2
+  new_w1 <- sum_p1 / n
+  new_w2 <- sum_p2 / n  # Alternatively, 1 - new_w1
+  
+  # Check convergence
+  delta_mu <- max(abs(new_mu1 - mu1), abs(new_mu2 - mu2))
+  delta_w <- max(abs(new_w1 - w1), abs(new_w2 - w2))
+  if (max(delta_mu, delta_w) < tol) {
+    converged <- TRUE
+  }
+  
+  # Update parameters
+  mu1 <- new_mu1
+  mu2 <- new_mu2
+  w1 <- new_w1
+  w2 <- new_w2
+}
+
+{
+# Output results
+if (converged) {
+  cat("EM converged after", iter, "iterations.\n")
+} else {
+  cat("EM reached maximum iterations (", max_iter, ") without convergence.\n")
+}
+cat("Estimated mu_1:", mu1, "\n")
+cat("Estimated mu_2:", mu2, "\n")
+cat("Estimated w_1:", w1, "\n")
+cat("Estimated w_2:", w2, "\n")
+}
+
+# Visualize the fitted densities over histogram
+hist(y, prob = TRUE, breaks = breaks_seq, col = "lightblue", main = "Data Histogram with Fitted GMM Densities", xlab = "y")
+curve(w1 * dnorm(x, mean = mu1, sd = sigma1) + w2 * dnorm(x, mean = mu2, sd = sigma2), add = TRUE, col = "red", lwd = 2)
+curve(w1 * dnorm(x, mean = mu1, sd = sigma1), add = TRUE, col = "blue", lty = 2, lwd = 2)
+curve(w2 * dnorm(x, mean = mu2, sd = sigma2), add = TRUE, col = "green", lty = 2, lwd = 2)
+legend("topright", legend = c("Fitted GMM", "Component 1 (Dashed)", "Component 2 (Dotted)"), col = c("red", "blue", "green"), lty = c(1, 2, 3), lwd = 2)
+```
+
+# 2f
+## E-step
+Apply Fubini's theorem, and noting that $\{(y_i, u_i)\}_{i=1}^n$ are independent and identically distributed,
+\begin{align}
+\quad & \mathbb{E}_{\mathbf{y} \mid \tilde{\mathbf{\theta}}}Q(\theta \mid \mathbf{y}, \tilde{\mathbf{\theta}}) \\
+&= \mathbb{E}_{\mathbf{y} \mid \tilde{\mathbf{\theta}}} \mathbb{E}_{\mathbf{u} \mid \mathbf{y}, \tilde{\mathbf{\theta}}}\log [L^C(\mathbf{\theta} \mid \mathbf{y}, \mathbf{u})] \\
+&= \mathbb{E}_{\mathbf{y}, \mathbf{u} \mid \tilde{\mathbf{\theta}}}\log [L^C(\mathbf{\theta} \mid \mathbf{y}, \mathbf{u})] \\
+&= -\frac{n}{2}\log(2\pi) + n \mathbb{E}_{y_i, u_i \mid \tilde{\mathbf{\theta}}} \log [ \sigma_{u_i}^{-1} \exp({-\frac{(y_i-\mu_{u_i})^2}{2\sigma_{u_i}^2}}) \cdot w_{u_i}] \\
+\end{align}
+Noting that $k=2$ and $\sigma_1^2=\sigma_2^2=1$. We have,
+\begin{align}
+\quad & \mathbb{E}_{y_i, u_i \mid \tilde{\mathbf{\theta}}} \log [ \sigma_{u_i}^{-1} \exp({-\frac{(y_i-\mu_{u_i})^2}{2\sigma_{u_i}^2}}) \cdot w_{u_i}] \\
+&= \mathbb{E}_{y_i, u_i \mid \tilde{\mathbf{\theta}}} [\log w_{u_i} -\frac{(y_i-\mu_{u_i})^2}{2})] \\
+&= \mathbb{E}_{u_i \mid \tilde{\mathbf{\theta}}} [\log w_{u_i}] - \frac{1}{2}\mathbb{E}_{y_i, u_i \mid \tilde{\mathbf{\theta}}} [(y_i-\mu_{u_i})^2]
+\end{align}
+The first term is:
+\begin{align}
+\quad &\mathbb{E}_{u_i \mid \tilde{\mathbf{\theta}}} [\log w_{u_i}] \\
+&= \tilde{w}_1 \log{w_1} + \tilde{w}_2 \log{w_2} \\
+&= \tilde{w}_1 \log{w_1} + (1-\tilde{w}_1) \log{(1-w_1)}
+\end{align}
+Noting that $y_i \mid u_i \sim \mathcal{N}(\mu_{u_i}, \sigma_{u_i}^2)$, and applying Fubini's theorem and lemma 1, the second term is:
+\begin{align}
+\quad & \frac{1}{2}\mathbb{E}_{y_i, u_i \mid \tilde{\mathbf{\theta}}} [(y_i-\mu_{u_i})^2] \\
+&= \frac{1}{2}\mathbb{E}_{u_i \mid \tilde{\mathbf{\theta}}}\mathbb{E}_{y_i \mid u_i \tilde{\mathbf{\theta}}} [(y_i-\mu_{u_i})^2] \\
+&= \frac{1}{2}\mathbb{E}_{u_i \mid \tilde{\mathbf{\theta}}} [(\mu_{u_i}-\tilde{\mu}_{u_i})^2 + \tilde{\sigma}_{u_i}^2] \\
+&= \frac{1}{2}\mathbb{E}_{u_i \mid \tilde{\mathbf{\theta}}} [(\mu_{u_i}-\tilde{\mu}_{u_i})^2 + 1] \\
+&= \frac{1}{2} [\tilde{w}_1(\mu_{1}-\tilde{\mu}_{1})^2 +\tilde{w}_2(\mu_{2}-\tilde{\mu}_{2})^2 +1] \\
+&= \frac{1}{2}\tilde{w}_1(\mu_{1}-\tilde{\mu}_{1})^2 +\frac{1}{2}\tilde{w}_2(\mu_{2}-\tilde{\mu}_{2})^2 + \frac{1}{2}
+\end{align}
+Combining together:
+\begin{align}
+\quad & \mathbb{E}_{\mathbf{y} \mid \tilde{\mathbf{\theta}}}Q(\theta \mid \mathbf{y}, \tilde{\mathbf{\theta}}) = 
+-\frac{n}{2}\log(2\pi) - \frac{n}{2} + 
+n\tilde{w}_1 \log{w_1} + n(1-\tilde{w}_1) \log{(1-w_1)} -
+\frac{n}{2}\tilde{w}_1(\mu_{1}-\tilde{\mu}_{1})^2 - \frac{n}{2}\tilde{w}_2(\mu_{2}-\tilde{\mu}_{2})^2
+\end{align}
+Note that this does not depend on our dataset anymore.
+
+## M-step
+For $w$, setting partial derivatives to zero yields:
+\begin{align}
+\frac{n\tilde{w}_1}{w_1} - \frac{n(1-\tilde{w}_1)}{1-w_1} &= 0 \\
+w_1 &= \tilde{w}_1
+\end{align}
+For $\mu_1, \mu_2$:
+\begin{align}
+n(\mu_{1}-\tilde{\mu}_{1}) = 0 \quad &\text{and} \quad n(\mu_{1}-\tilde{\mu}_{1}) = 0 \\
+\mu_{1} = \tilde{\mu}_{1} \quad &\text{and} \quad \mu_{2} = \tilde{\mu}_{2}
+\end{align}
+It can be seen that the population EM algorithm recovers exactly the initial estimates. In other words, it does not update. This result is also evident from its construction that the population EM algorithm does not utilize the empirical dataset at any point. If the initial estimate is the true parameter, then the population EM algorithm returns this true estimate without perturbation. This is an example of the self-consistency property of the population EM algorithm, from a theoretical point of view (Balakrishnan, Wainwright & Yu, 2017; McLachlan & Krishnan, 2008).
+
+Compared the population EM algorithm in (f), the sample-based EM algorithm in question (e) is able to utilize samples to update the parameter values against the initial estimate, thus applicable to a large class of model fitting problems. The population EM algorithm is used for theoretical purpose in algorithm analysis and development, while the sample-based EM algorithm is used in application of model fitting.
+
+# References
+Balakrishnan, S., Wainwright, M., & Yu, B. (2017). Statistical guarantees for the EM algorithm: From population to sample-based analysis. The Annals of Statistics, 45(1), 77-120. http://dx.doi.org/10.1214/16-aos1435
+
+McLachlan, G. J., & Krishnan, T. (2008). The EM algorithm and extensions (2nd ed.). Wiley-Interscience.
